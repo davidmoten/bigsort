@@ -8,6 +8,7 @@ import java.util.List;
 
 import rx.Notification;
 import rx.Observable;
+import rx.Scheduler;
 import rx.functions.Func0;
 import rx.functions.Func1;
 import rx.functions.Func2;
@@ -20,14 +21,14 @@ public class BigSort {
 			final Func2<Observable<T>, File, Observable<File>> writer,
 			final Func1<File, Observable<T>> reader,
 			final Func0<File> fileFactory, int maxToSortInMemoryPerThread,
-			final int maxTempFiles) {
+			final int maxTempFiles, Scheduler scheduler) {
 		return source
 		// buffer into groups small enough to sort in memory
 				.buffer(maxToSortInMemoryPerThread)
 				// sort each buffer to a file
 				.flatMap(
 						sortInMemoryAndWriteToAFile(comparator, writer,
-								fileFactory))
+								fileFactory, scheduler))
 				// make each file an Observable<File>
 				.nest()
 				// reduce by merging the files to a single file once the file
@@ -48,7 +49,7 @@ public class BigSort {
 	private static <T> Func1<List<T>, Observable<File>> sortInMemoryAndWriteToAFile(
 			final Comparator<T> comparator,
 			final Func2<Observable<T>, File, Observable<File>> writer,
-			final Func0<File> fileFactory) {
+			final Func0<File> fileFactory, final Scheduler scheduler) {
 		return new Func1<List<T>, Observable<File>>() {
 			@Override
 			public Observable<File> call(List<T> list) {
@@ -56,7 +57,9 @@ public class BigSort {
 				// sort
 						.map(sortList(comparator))
 						// write to file
-						.flatMap(writeToFile(writer, fileFactory));
+						.flatMap(writeToFile(writer, fileFactory))
+						// subscribe on desired scheduler
+						.subscribeOn(scheduler);
 			}
 		};
 	}
