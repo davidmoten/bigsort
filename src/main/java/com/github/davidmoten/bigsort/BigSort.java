@@ -60,8 +60,8 @@ public class BigSort {
 									return list;
 								else {
 									File file = fileFactory.call();
-									items = merge(list, comparator, reader,
-											file);
+									Observable<T> items = merge(list,
+											comparator, reader);
 									return Collections.singletonList(file);
 								}
 							}
@@ -71,35 +71,66 @@ public class BigSort {
 	}
 
 	private static <T> Observable<T> merge(List<File> files,
-			Comparator<T> comparator, Func1<File, Observable<T>> reader) {
-		Observable
-				.zip(Observable
-						.from(files)
+			final Comparator<T> comparator, Func1<File, Observable<T>> reader) {
+		return Observable
+				.zip(Observable.from(files)
+				// read
 						.map(reader)
-						.map(new Func1<Observable<T>, Observable<Notification<T>>>() {
-
-							@Override
-							public Observable<Notification<T>> call(
-									Observable<T> o) {
-								return o.materialize()
-										.concatWith(
-												Observable
-														.just(Notification
-																.<T> createOnCompleted())
-														.repeat());
-							}
-						}), BigSort.<Notification<T>> toList())
+						// materialize and ensure each stream does not complete
+						.map(BigSort
+								.<T> materializeAndRepeatOnCompleteIndefinitely()),
+						BigSort.<Notification<T>> toList())
 				// keep going till all observables complete
-				.takeWhile(new Func1<List<Notification<T>>, Boolean>() {
-					@Override
-					public Boolean call(List<Notification<T>> list) {
-						for (Notification<T> notif : list)
-							if (notif.isOnNext())
-								return true;
-						return false;
-					}
-				});
+				.takeWhile(BigSort.<T> listHasOnNext())
+				// take miniumum
+				.map(BigSort.<T> toMinimum(comparator));
 
+	}
+
+	private static <T> Func1<List<Notification<T>>, T> toMinimum(
+			final Comparator<T> comparator) {
+		return new Func1<List<Notification<T>>, T>() {
+
+			@Override
+			public T call(List<Notification<T>> list) {
+				T t = null;
+				for (Notification<T> notification : list) {
+					if (notification.isOnNext()) {
+						T v = notification.getValue();
+						if (t == null)
+							t = v;
+						else if (comparator.compare(v, t) < 0)
+							;
+						t = v;
+					}
+				}
+				throw new RuntimeException("unexpected");
+			}
+		};
+	}
+
+	private static <T> Func1<List<Notification<T>>, Boolean> listHasOnNext() {
+		return new Func1<List<Notification<T>>, Boolean>() {
+			@Override
+			public Boolean call(List<Notification<T>> list) {
+				for (Notification<T> notif : list)
+					if (notif.isOnNext())
+						return true;
+				return false;
+			}
+		};
+	}
+
+	private static <T> Func1<Observable<T>, Observable<Notification<T>>> materializeAndRepeatOnCompleteIndefinitely() {
+		return new Func1<Observable<T>, Observable<Notification<T>>>() {
+
+			@Override
+			public Observable<Notification<T>> call(Observable<T> o) {
+				return o.materialize().concatWith(
+						Observable.just(Notification.<T> createOnCompleted())
+								.repeat());
+			}
+		};
 	}
 
 	private static <T> FuncN<List<T>> toList() {
