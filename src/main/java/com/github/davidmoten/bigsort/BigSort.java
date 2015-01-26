@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import rx.Notification;
 import rx.Observable;
 import rx.functions.Action2;
 import rx.functions.Func0;
@@ -69,6 +70,17 @@ public class BigSort {
 
 	private static <T> Observable<T> merge(List<File> files,
 			Comparator<T> comparator, Func1<File, Observable<T>> reader) {
+		Observable.zip(Observable.from(files).map(reader)
+				.map(new Func1<Observable<T>, Observable<Notification<T>>>() {
+
+					@Override
+					public Observable<Notification<T>> call(Observable<T> o) {
+						return o.materialize().concatWith(
+								Observable.just(
+										Notification.<T> createOnCompleted())
+										.repeat());
+					}
+				}));
 
 	}
 }
