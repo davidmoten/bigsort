@@ -88,6 +88,12 @@
 			<version>${rxjava.version}</version>
 		</dependency>
 
+		<dependency>
+			<groupId>com.github.davidmoten</groupId>
+			<artifactId>rxjava-extras</artifactId>
+			<version>0.4.6</version>
+		</dependency>
+
 		<!-- Test Dependencies -->
 		<dependency>
 			<groupId>junit</groupId>
@@ -110,7 +116,6 @@
 			<version>${jmh.version}</version>
 			<scope>test</scope>
 		</dependency>
-
 
 	</dependencies>
 

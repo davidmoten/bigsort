@@ -1,7 +1,6 @@
 package com.github.davidmoten.bigsort;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -35,7 +34,8 @@ public class BigSort {
 			int maxToSortInMemoryPerThread,
 			//
 			final int maxTempFiles) {
-		source.buffer(maxToSortInMemoryPerThread)
+		return source
+				.buffer(maxToSortInMemoryPerThread)
 				.flatMap(new Func1<List<T>, Observable<File>>() {
 					@Override
 					public Observable<File> call(List<T> list) {
@@ -61,27 +61,54 @@ public class BigSort {
 										});
 					}
 				})
+				.nest()
 				// merge the files in each list
-				.reduce(Collections.<File> emptyList(),
-						new Func2<List<File>, File, List<File>>() {
+				.reduce(Observable.<File> empty(),
+						new Func2<Observable<File>, Observable<File>, Observable<File>>() {
 
 							@Override
-							public List<File> call(List<File> files, File f) {
-								List<File> list = new ArrayList<File>(files);
-								list.add(f);
-								if (list.size() < maxTempFiles)
-									return list;
-								else {
-									File file = fileFactory.call();
-									Observable<T> items = merge(list,
-											comparator, reader);
-									writer.call(items, file);
-									return Collections.singletonList(file);
-								}
-							}
-						});
-		return null;
+							public Observable<File> call(
+									Observable<File> files,
+									final Observable<File> f) {
+								return files
+										.concatWith(f)
+										.toList()
+										.flatMap(
+												new Func1<List<File>, Observable<File>>() {
 
+													@Override
+													public Observable<File> call(
+															List<File> list) {
+														if (list.size() < maxTempFiles)
+															return Observable
+																	.from(list);
+														else {
+															File file = fileFactory
+																	.call();
+															Observable<T> items = merge(
+																	list,
+																	comparator,
+																	reader);
+															return writer
+																	.call(items,
+																			file);
+														}
+													}
+												});
+							}
+						})
+				// flatten
+				.flatMap(
+						com.github.davidmoten.rx.Functions
+								.<Observable<File>> identity())
+
+				.toList().flatMap(new Func1<List<File>, Observable<T>>() {
+
+					@Override
+					public Observable<T> call(List<File> list) {
+						return merge(list, comparator, reader);
+					}
+				});
 	}
 
 	private static <T> Observable<T> merge(List<File> files,
