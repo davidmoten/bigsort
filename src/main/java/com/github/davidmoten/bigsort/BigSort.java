@@ -1,6 +1,5 @@
 package com.github.davidmoten.bigsort;
 
-import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -16,120 +15,122 @@ import rx.functions.FuncN;
 
 public class BigSort {
 
-	public static <T> Observable<T> sort(Observable<T> source,
+	public static <T, Resource> Observable<T> sort(Observable<T> source,
 			final Comparator<T> comparator,
-			final Func2<Observable<T>, File, Observable<File>> writer,
-			final Func1<File, Observable<T>> reader,
-			final Func0<File> fileFactory, int maxToSortInMemoryPerThread,
-			final int maxTempFiles, Scheduler scheduler) {
+			final Func2<Observable<T>, Resource, Observable<Resource>> writer,
+			final Func1<Resource, Observable<T>> reader,
+			final Func0<Resource> resourceFactory,
+			int maxToSortInMemoryPerThread, final int maxTempResources,
+			Scheduler scheduler) {
 		return source
 		// buffer into groups small enough to sort in memory
 				.buffer(maxToSortInMemoryPerThread)
-				// sort each buffer to a file
+				// sort each buffer to a resource
 				.flatMap(
-						sortInMemoryAndWriteToAFile(comparator, writer,
-								fileFactory, scheduler))
-				// make each file an Observable<File>
+						sortInMemoryAndWriteToAResource(comparator, writer,
+								resourceFactory, scheduler))
+				// make each resource an Observable<Resource>
 				.nest()
-				// reduce by merging the files to a single file once the file
-				// count is maxTempFiles
-				.reduce(Observable.<File> empty(),
-						mergeFiles(comparator, writer, reader, fileFactory,
-								maxTempFiles))
-				// flatten to a sequence of File
+				// reduce by merging the resources to a single resource once the
+				// resource count is maxTempResources
+				.reduce(Observable.<Resource> empty(),
+						mergeResources(comparator, writer, reader,
+								resourceFactory, maxTempResources))
+				// flatten to a sequence of Resource
 				.flatMap(
 						com.github.davidmoten.rx.Functions
-								.<Observable<File>> identity())
+								.<Observable<Resource>> identity())
 				// accumulate to a list
 				.toList()
-				// merge remaining files
-				.flatMap(mergeFileList(comparator, reader));
+				// merge remaining resources
+				.flatMap(mergeResourceList(comparator, reader));
 	}
 
-	private static <T> Func1<List<T>, Observable<File>> sortInMemoryAndWriteToAFile(
+	private static <T, Resource> Func1<List<T>, Observable<Resource>> sortInMemoryAndWriteToAResource(
 			final Comparator<T> comparator,
-			final Func2<Observable<T>, File, Observable<File>> writer,
-			final Func0<File> fileFactory, final Scheduler scheduler) {
-		return new Func1<List<T>, Observable<File>>() {
+			final Func2<Observable<T>, Resource, Observable<Resource>> writer,
+			final Func0<Resource> resourceFactory, final Scheduler scheduler) {
+		return new Func1<List<T>, Observable<Resource>>() {
 			@Override
-			public Observable<File> call(List<T> list) {
+			public Observable<Resource> call(List<T> list) {
 				return Observable.just(list)
 				// sort
 						.map(sortList(comparator))
-						// write to file
-						.flatMap(writeToFile(writer, fileFactory))
+						// write to resource
+						.flatMap(writeToResource(writer, resourceFactory))
 						// subscribe on desired scheduler
 						.subscribeOn(scheduler);
 			}
 		};
 	}
 
-	private static <T> Func2<Observable<File>, Observable<File>, Observable<File>> mergeFiles(
+	private static <T, Resource> Func2<Observable<Resource>, Observable<Resource>, Observable<Resource>> mergeResources(
 			final Comparator<T> comparator,
-			final Func2<Observable<T>, File, Observable<File>> writer,
-			final Func1<File, Observable<T>> reader,
-			final Func0<File> fileFactory, final int maxTempFiles) {
-		return new Func2<Observable<File>, Observable<File>, Observable<File>>() {
+			final Func2<Observable<T>, Resource, Observable<Resource>> writer,
+			final Func1<Resource, Observable<T>> reader,
+			final Func0<Resource> resourceFactory, final int maxTempResources) {
+		return new Func2<Observable<Resource>, Observable<Resource>, Observable<Resource>>() {
 
 			@Override
-			public Observable<File> call(Observable<File> files,
-					final Observable<File> f) {
-				return files
+			public Observable<Resource> call(Observable<Resource> resources,
+					final Observable<Resource> f) {
+				return resources
 						.concatWith(f)
 						.toList()
 						.flatMap(
-								mergeWhenSizeIsMaxTempFiles(comparator, writer,
-										reader, fileFactory, maxTempFiles));
+								mergeWhenSizeIsMaxTempResources(comparator,
+										writer, reader, resourceFactory,
+										maxTempResources));
 			}
 
 		};
 	}
 
-	private static <T> Func1<List<File>, Observable<T>> mergeFileList(
+	private static <T, Resource> Func1<List<Resource>, Observable<T>> mergeResourceList(
 			final Comparator<T> comparator,
-			final Func1<File, Observable<T>> reader) {
-		return new Func1<List<File>, Observable<T>>() {
+			final Func1<Resource, Observable<T>> reader) {
+		return new Func1<List<Resource>, Observable<T>>() {
 
 			@Override
-			public Observable<T> call(List<File> list) {
+			public Observable<T> call(List<Resource> list) {
 				return merge(list, comparator, reader);
 			}
 		};
 	}
 
-	private static <T> Func1<List<File>, Observable<File>> mergeWhenSizeIsMaxTempFiles(
+	private static <T, Resource> Func1<List<Resource>, Observable<Resource>> mergeWhenSizeIsMaxTempResources(
 			final Comparator<T> comparator,
-			final Func2<Observable<T>, File, Observable<File>> writer,
-			final Func1<File, Observable<T>> reader,
-			final Func0<File> fileFactory, final int maxTempFiles) {
-		return new Func1<List<File>, Observable<File>>() {
+			final Func2<Observable<T>, Resource, Observable<Resource>> writer,
+			final Func1<Resource, Observable<T>> reader,
+			final Func0<Resource> resourceFactory, final int maxTempResources) {
+		return new Func1<List<Resource>, Observable<Resource>>() {
 
 			@Override
-			public Observable<File> call(List<File> list) {
-				if (list.size() < maxTempFiles)
+			public Observable<Resource> call(List<Resource> list) {
+				if (list.size() < maxTempResources)
 					return Observable.from(list);
 				else {
-					File file = fileFactory.call();
+					Resource resource = resourceFactory.call();
 					Observable<T> items = merge(list, comparator, reader);
-					return writer.call(items, file);
+					return writer.call(items, resource);
 				}
 			}
 		};
 	}
 
-	private static <T> Func1<List<T>, Observable<File>> writeToFile(
-			final Func2<Observable<T>, File, Observable<File>> writer,
-			final Func0<File> fileFactory) {
-		return new Func1<List<T>, Observable<File>>() {
+	private static <T, Resource> Func1<List<T>, Observable<Resource>> writeToResource(
+			final Func2<Observable<T>, Resource, Observable<Resource>> writer,
+			final Func0<Resource> resourceFactory) {
+		return new Func1<List<T>, Observable<Resource>>() {
 			@Override
-			public Observable<File> call(List<T> a) {
-				File file = fileFactory.call();
-				return writer.call(Observable.from(a), file);
+			public Observable<Resource> call(List<T> a) {
+				Resource resource = resourceFactory.call();
+				return writer.call(Observable.from(a), resource);
 			}
 		};
 	}
 
-	private static <T> Func1<List<T>, List<T>> sortList(
+	private static <T, Resource> Func1<List<T>, List<T>> sortList(
 			final Comparator<T> comparator) {
 		return new Func1<List<T>, List<T>>() {
 			@Override
@@ -140,10 +141,11 @@ public class BigSort {
 		};
 	}
 
-	private static <T> Observable<T> merge(List<File> files,
-			final Comparator<T> comparator, Func1<File, Observable<T>> reader) {
+	private static <T, Resource> Observable<T> merge(List<Resource> resources,
+			final Comparator<T> comparator,
+			Func1<Resource, Observable<T>> reader) {
 		return Observable
-				.zip(Observable.from(files)
+				.zip(Observable.from(resources)
 				// read
 						.map(reader)
 						// materialize and ensure each stream does not complete
@@ -167,11 +169,8 @@ public class BigSort {
 				for (Notification<T> notification : list) {
 					if (notification.isOnNext()) {
 						T v = notification.getValue();
-						if (t == null)
+						if (t == null || comparator.compare(v, t) < 0)
 							t = v;
-						else if (comparator.compare(v, t) < 0)
-							;
-						t = v;
 					}
 				}
 				throw new RuntimeException("unexpected");
