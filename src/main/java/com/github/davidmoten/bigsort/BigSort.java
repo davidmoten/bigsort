@@ -2,6 +2,7 @@ package com.github.davidmoten.bigsort;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -12,6 +13,7 @@ import rx.functions.Action2;
 import rx.functions.Func0;
 import rx.functions.Func1;
 import rx.functions.Func2;
+import rx.functions.FuncN;
 
 public class BigSort {
 
@@ -70,17 +72,44 @@ public class BigSort {
 
 	private static <T> Observable<T> merge(List<File> files,
 			Comparator<T> comparator, Func1<File, Observable<T>> reader) {
-		Observable.zip(Observable.from(files).map(reader)
-				.map(new Func1<Observable<T>, Observable<Notification<T>>>() {
+		Observable
+				.zip(Observable
+						.from(files)
+						.map(reader)
+						.map(new Func1<Observable<T>, Observable<Notification<T>>>() {
 
+							@Override
+							public Observable<Notification<T>> call(
+									Observable<T> o) {
+								return o.materialize()
+										.concatWith(
+												Observable
+														.just(Notification
+																.<T> createOnCompleted())
+														.repeat());
+							}
+						}), BigSort.<Notification<T>> toList())
+				// keep going till all observables complete
+				.takeWhile(new Func1<List<Notification<T>>, Boolean>() {
 					@Override
-					public Observable<Notification<T>> call(Observable<T> o) {
-						return o.materialize().concatWith(
-								Observable.just(
-										Notification.<T> createOnCompleted())
-										.repeat());
+					public Boolean call(List<Notification<T>> list) {
+						for (Notification<T> notif : list)
+							if (notif.isOnNext())
+								return true;
+						return false;
 					}
-				}));
+				});
 
+	}
+
+	private static <T> FuncN<List<T>> toList() {
+		return new FuncN<List<T>>() {
+
+			@SuppressWarnings("unchecked")
+			@Override
+			public List<T> call(Object... items) {
+				return Arrays.asList((T[]) items);
+			}
+		};
 	}
 }
