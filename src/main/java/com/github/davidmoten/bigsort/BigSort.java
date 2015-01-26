@@ -9,7 +9,6 @@ import java.util.List;
 
 import rx.Notification;
 import rx.Observable;
-import rx.functions.Action2;
 import rx.functions.Func0;
 import rx.functions.Func1;
 import rx.functions.Func2;
@@ -21,31 +20,45 @@ public class BigSort {
 		Observable<T> read(File file);
 	}
 
-	public static <T> Observable<T> sort(Observable<T> source,
+	public static <T> Observable<T> sort(
+	//
+			Observable<T> source,
+			//
 			final Comparator<T> comparator,
-			final Action2<Observable<T>, File> writer,
+			//
+			final Func2<Observable<T>, File, Observable<File>> writer,
+			//
 			final Func1<File, Observable<T>> reader,
-			final Func0<File> fileFactory, int maxToSortInMemoryPerThread,
+			//
+			final Func0<File> fileFactory,
+			//
+			int maxToSortInMemoryPerThread,
+			//
 			final int maxTempFiles) {
 		source.buffer(maxToSortInMemoryPerThread)
 				.flatMap(new Func1<List<T>, Observable<File>>() {
 					@Override
 					public Observable<File> call(List<T> list) {
-						return Observable.just(list)
+						return Observable
+								.just(list)
 								.map(new Func1<List<T>, List<T>>() {
 									@Override
 									public List<T> call(List<T> list) {
 										Collections.sort(list, comparator);
 										return list;
 									}
-								}).map(new Func1<List<T>, File>() {
-									@Override
-									public File call(List<T> a) {
-										File file = fileFactory.call();
-										writer.call(Observable.from(a), file);
-										return file;
-									}
-								});
+								})
+								.flatMap(
+										new Func1<List<T>, Observable<File>>() {
+											@Override
+											public Observable<File> call(
+													List<T> a) {
+												File file = fileFactory.call();
+												return writer.call(
+														Observable.from(a),
+														file);
+											}
+										});
 					}
 				})
 				// merge the files in each list
@@ -62,6 +75,7 @@ public class BigSort {
 									File file = fileFactory.call();
 									Observable<T> items = merge(list,
 											comparator, reader);
+									writer.call(items, file);
 									return Collections.singletonList(file);
 								}
 							}
