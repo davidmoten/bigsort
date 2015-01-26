@@ -15,100 +15,126 @@ import rx.functions.FuncN;
 
 public class BigSort {
 
-	public static interface Reader<T> {
-		Observable<T> read(File file);
-	}
-
-	public static <T> Observable<T> sort(
-	//
-			Observable<T> source,
-			//
+	public static <T> Observable<T> sort(Observable<T> source,
 			final Comparator<T> comparator,
-			//
 			final Func2<Observable<T>, File, Observable<File>> writer,
-			//
 			final Func1<File, Observable<T>> reader,
-			//
-			final Func0<File> fileFactory,
-			//
-			int maxToSortInMemoryPerThread,
-			//
+			final Func0<File> fileFactory, int maxToSortInMemoryPerThread,
 			final int maxTempFiles) {
 		return source
+		// buffer into groups small enough to sort in memory
 				.buffer(maxToSortInMemoryPerThread)
-				.flatMap(new Func1<List<T>, Observable<File>>() {
-					@Override
-					public Observable<File> call(List<T> list) {
-						return Observable
-								.just(list)
-								.map(new Func1<List<T>, List<T>>() {
-									@Override
-									public List<T> call(List<T> list) {
-										Collections.sort(list, comparator);
-										return list;
-									}
-								})
-								.flatMap(
-										new Func1<List<T>, Observable<File>>() {
-											@Override
-											public Observable<File> call(
-													List<T> a) {
-												File file = fileFactory.call();
-												return writer.call(
-														Observable.from(a),
-														file);
-											}
-										});
-					}
-				})
+				// sort each buffer to a file
+				.flatMap(
+						sortInMemoryAndWriteToAFile(comparator, writer,
+								fileFactory))
+				// make each file an Observable<File>
 				.nest()
-				// merge the files in each list
+				// reduce by merging the files to a single file once the file
+				// count is maxTempFiles
 				.reduce(Observable.<File> empty(),
-						new Func2<Observable<File>, Observable<File>, Observable<File>>() {
-
-							@Override
-							public Observable<File> call(
-									Observable<File> files,
-									final Observable<File> f) {
-								return files
-										.concatWith(f)
-										.toList()
-										.flatMap(
-												new Func1<List<File>, Observable<File>>() {
-
-													@Override
-													public Observable<File> call(
-															List<File> list) {
-														if (list.size() < maxTempFiles)
-															return Observable
-																	.from(list);
-														else {
-															File file = fileFactory
-																	.call();
-															Observable<T> items = merge(
-																	list,
-																	comparator,
-																	reader);
-															return writer
-																	.call(items,
-																			file);
-														}
-													}
-												});
-							}
-						})
-				// flatten
+						mergeFiles(comparator, writer, reader, fileFactory,
+								maxTempFiles))
+				// flatten to a sequence of File
 				.flatMap(
 						com.github.davidmoten.rx.Functions
 								.<Observable<File>> identity())
+				// accumulate to a list
+				.toList()
+				// merge remaining files
+				.flatMap(mergeFileList(comparator, reader));
+	}
 
-				.toList().flatMap(new Func1<List<File>, Observable<T>>() {
+	private static <T> Func1<List<T>, Observable<File>> sortInMemoryAndWriteToAFile(
+			final Comparator<T> comparator,
+			final Func2<Observable<T>, File, Observable<File>> writer,
+			final Func0<File> fileFactory) {
+		return new Func1<List<T>, Observable<File>>() {
+			@Override
+			public Observable<File> call(List<T> list) {
+				return Observable.just(list)
+				// sort
+						.map(sortList(comparator))
+						// write to file
+						.flatMap(writeToFile(writer, fileFactory));
+			}
+		};
+	}
 
-					@Override
-					public Observable<T> call(List<File> list) {
-						return merge(list, comparator, reader);
-					}
-				});
+	private static <T> Func2<Observable<File>, Observable<File>, Observable<File>> mergeFiles(
+			final Comparator<T> comparator,
+			final Func2<Observable<T>, File, Observable<File>> writer,
+			final Func1<File, Observable<T>> reader,
+			final Func0<File> fileFactory, final int maxTempFiles) {
+		return new Func2<Observable<File>, Observable<File>, Observable<File>>() {
+
+			@Override
+			public Observable<File> call(Observable<File> files,
+					final Observable<File> f) {
+				return files
+						.concatWith(f)
+						.toList()
+						.flatMap(
+								mergeWhenSizeIsMaxTempFiles(comparator, writer,
+										reader, fileFactory, maxTempFiles));
+			}
+
+		};
+	}
+
+	private static <T> Func1<List<File>, Observable<T>> mergeFileList(
+			final Comparator<T> comparator,
+			final Func1<File, Observable<T>> reader) {
+		return new Func1<List<File>, Observable<T>>() {
+
+			@Override
+			public Observable<T> call(List<File> list) {
+				return merge(list, comparator, reader);
+			}
+		};
+	}
+
+	private static <T> Func1<List<File>, Observable<File>> mergeWhenSizeIsMaxTempFiles(
+			final Comparator<T> comparator,
+			final Func2<Observable<T>, File, Observable<File>> writer,
+			final Func1<File, Observable<T>> reader,
+			final Func0<File> fileFactory, final int maxTempFiles) {
+		return new Func1<List<File>, Observable<File>>() {
+
+			@Override
+			public Observable<File> call(List<File> list) {
+				if (list.size() < maxTempFiles)
+					return Observable.from(list);
+				else {
+					File file = fileFactory.call();
+					Observable<T> items = merge(list, comparator, reader);
+					return writer.call(items, file);
+				}
+			}
+		};
+	}
+
+	private static <T> Func1<List<T>, Observable<File>> writeToFile(
+			final Func2<Observable<T>, File, Observable<File>> writer,
+			final Func0<File> fileFactory) {
+		return new Func1<List<T>, Observable<File>>() {
+			@Override
+			public Observable<File> call(List<T> a) {
+				File file = fileFactory.call();
+				return writer.call(Observable.from(a), file);
+			}
+		};
+	}
+
+	private static <T> Func1<List<T>, List<T>> sortList(
+			final Comparator<T> comparator) {
+		return new Func1<List<T>, List<T>>() {
+			@Override
+			public List<T> call(List<T> list) {
+				Collections.sort(list, comparator);
+				return list;
+			}
+		};
 	}
 
 	private static <T> Observable<T> merge(List<File> files,
