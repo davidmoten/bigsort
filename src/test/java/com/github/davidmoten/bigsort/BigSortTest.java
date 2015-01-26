@@ -22,9 +22,13 @@ public class BigSortTest extends TestCase {
 
 	public static TestSuite suite() {
 
-		return TestingHelper.function(SORTER)
+		return TestingHelper
+				.function(SORTER)
 				// test empty
 				.name("testSortOfEmptyReturnsEmpty").fromEmpty().expectEmpty()
+				.name("testSortAFew").from("10", "09", "08")
+				.expect("08", "09", "10")
+				// return suite
 				.testSuite(BigSortTest.class);
 	}
 
@@ -99,7 +103,6 @@ public class BigSortTest extends TestCase {
 
 				@Override
 				public Observable<String> call(File file) {
-					// TODO Auto-generated method stub
 					return null;
 				}
 			};
