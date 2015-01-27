@@ -34,8 +34,8 @@ public class BigSort {
 								resourceFactory, scheduler))
 				// make each resource an Observable<Resource>
 				.nest()
-				// reduce by merging the resources to a single resource once the
-				// resource count is maxTempResources
+				// reduce by merging groups of resources to a single resource
+				// once the resource count is maxTempResources
 				.reduce(Observable.<Resource> empty(),
 						mergeResources(comparator, writer, reader,
 								resourceFactory, resourceDisposer,
