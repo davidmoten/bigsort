@@ -35,7 +35,7 @@ public class BigSortTest extends TestCase {
 	}
 
 	public void testLarge() {
-		final int n = 100000;
+		final int n = 101;
 		Observable<Integer> source = Observable.range(0, n).map(
 				new Func1<Integer, Integer>() {
 					@Override

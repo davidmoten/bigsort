@@ -68,6 +68,29 @@ public class BigSort {
 		};
 	}
 
+	private static <T, Resource> Func1<List<T>, List<T>> sortList(
+			final Comparator<T> comparator) {
+		return new Func1<List<T>, List<T>>() {
+			@Override
+			public List<T> call(List<T> list) {
+				Collections.sort(list, comparator);
+				return list;
+			}
+		};
+	}
+
+	private static <T, Resource> Func1<List<T>, Observable<Resource>> writeToResource(
+			final Func2<Observable<T>, Resource, Observable<Resource>> writer,
+			final Func0<Resource> resourceFactory) {
+		return new Func1<List<T>, Observable<Resource>>() {
+			@Override
+			public Observable<Resource> call(List<T> a) {
+				Resource resource = resourceFactory.call();
+				return writer.call(Observable.from(a), resource);
+			}
+		};
+	}
+
 	private static <T, Resource> Func2<Observable<Resource>, Observable<Resource>, Observable<Resource>> mergeResources(
 			final Comparator<T> comparator,
 			final Func2<Observable<T>, Resource, Observable<Resource>> writer,
@@ -86,18 +109,6 @@ public class BigSort {
 								mergeWhenSizeIsMaxTempResources(comparator,
 										writer, reader, resourceFactory,
 										resourceDisposer, maxTempResources));
-			}
-		};
-	}
-
-	private static <T, Resource> Func1<List<Resource>, Observable<T>> mergeResourceList(
-			final Comparator<T> comparator,
-			final Func1<Resource, Observable<T>> reader) {
-		return new Func1<List<Resource>, Observable<T>>() {
-
-			@Override
-			public Observable<T> call(List<Resource> list) {
-				return merge(list, comparator, reader);
 			}
 		};
 	}
@@ -131,29 +142,6 @@ public class BigSort {
 		};
 	}
 
-	private static <T, Resource> Func1<List<T>, Observable<Resource>> writeToResource(
-			final Func2<Observable<T>, Resource, Observable<Resource>> writer,
-			final Func0<Resource> resourceFactory) {
-		return new Func1<List<T>, Observable<Resource>>() {
-			@Override
-			public Observable<Resource> call(List<T> a) {
-				Resource resource = resourceFactory.call();
-				return writer.call(Observable.from(a), resource);
-			}
-		};
-	}
-
-	private static <T, Resource> Func1<List<T>, List<T>> sortList(
-			final Comparator<T> comparator) {
-		return new Func1<List<T>, List<T>>() {
-			@Override
-			public List<T> call(List<T> list) {
-				Collections.sort(list, comparator);
-				return list;
-			}
-		};
-	}
-
 	private static <T, Resource> Observable<T> merge(List<Resource> resources,
 			final Comparator<T> comparator,
 			Func1<Resource, Observable<T>> reader) {
@@ -170,40 +158,6 @@ public class BigSort {
 				// take miniumum
 				.map(BigSort.<T> toMinimum(comparator));
 
-	}
-
-	private static <T> Func1<List<Notification<T>>, T> toMinimum(
-			final Comparator<T> comparator) {
-		return new Func1<List<Notification<T>>, T>() {
-
-			@Override
-			public T call(List<Notification<T>> list) {
-				T t = null;
-				for (Notification<T> notification : list) {
-					if (notification.isOnNext()) {
-						T v = notification.getValue();
-						if (t == null || comparator.compare(v, t) < 0)
-							t = v;
-					}
-				}
-				if (t == null)
-					throw new RuntimeException("unexpected");
-				else
-					return t;
-			}
-		};
-	}
-
-	private static <T> Func1<List<Notification<T>>, Boolean> listHasOnNext() {
-		return new Func1<List<Notification<T>>, Boolean>() {
-			@Override
-			public Boolean call(List<Notification<T>> list) {
-				for (Notification<T> notif : list)
-					if (notif.isOnNext())
-						return true;
-				return false;
-			}
-		};
 	}
 
 	private static <T> Func1<Observable<T>, Observable<Notification<T>>> materializeAndRepeatOnCompleteIndefinitely() {
@@ -228,4 +182,50 @@ public class BigSort {
 			}
 		};
 	}
+
+	private static <T> Func1<List<Notification<T>>, Boolean> listHasOnNext() {
+		return new Func1<List<Notification<T>>, Boolean>() {
+			@Override
+			public Boolean call(List<Notification<T>> list) {
+				for (Notification<T> notif : list)
+					if (notif.isOnNext())
+						return true;
+				return false;
+			}
+		};
+	}
+
+	private static <T> Func1<List<Notification<T>>, T> toMinimum(
+			final Comparator<T> comparator) {
+		return new Func1<List<Notification<T>>, T>() {
+
+			@Override
+			public T call(List<Notification<T>> list) {
+				T t = null;
+				for (Notification<T> notification : list) {
+					if (notification.isOnNext()) {
+						T v = notification.getValue();
+						if (t == null || comparator.compare(v, t) < 0)
+							t = v;
+					}
+				}
+				if (t == null)
+					throw new RuntimeException("unexpected");
+				else
+					return t;
+			}
+		};
+	}
+
+	private static <T, Resource> Func1<List<Resource>, Observable<T>> mergeResourceList(
+			final Comparator<T> comparator,
+			final Func1<Resource, Observable<T>> reader) {
+		return new Func1<List<Resource>, Observable<T>>() {
+			@Override
+			public Observable<T> call(List<Resource> list) {
+				return merge(list, comparator, reader);
+			}
+		};
+	}
+
 }
