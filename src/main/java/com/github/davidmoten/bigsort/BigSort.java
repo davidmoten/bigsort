@@ -8,6 +8,8 @@ import java.util.List;
 import rx.Notification;
 import rx.Observable;
 import rx.Scheduler;
+import rx.functions.Action0;
+import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
 import rx.functions.Func2;
@@ -20,6 +22,7 @@ public class BigSort {
 			final Func2<Observable<T>, Resource, Observable<Resource>> writer,
 			final Func1<Resource, Observable<T>> reader,
 			final Func0<Resource> resourceFactory,
+			final Action1<Resource> resourceDisposer,
 			int maxToSortInMemoryPerThread, final int maxTempResources,
 			Scheduler scheduler) {
 		return source
@@ -35,7 +38,8 @@ public class BigSort {
 				// resource count is maxTempResources
 				.reduce(Observable.<Resource> empty(),
 						mergeResources(comparator, writer, reader,
-								resourceFactory, maxTempResources))
+								resourceFactory, resourceDisposer,
+								maxTempResources))
 				// flatten to a sequence of Resource
 				.flatMap(
 						com.github.davidmoten.rx.Functions
@@ -68,7 +72,8 @@ public class BigSort {
 			final Comparator<T> comparator,
 			final Func2<Observable<T>, Resource, Observable<Resource>> writer,
 			final Func1<Resource, Observable<T>> reader,
-			final Func0<Resource> resourceFactory, final int maxTempResources) {
+			final Func0<Resource> resourceFactory,
+			final Action1<Resource> resourceDisposer, final int maxTempResources) {
 		return new Func2<Observable<Resource>, Observable<Resource>, Observable<Resource>>() {
 
 			@Override
@@ -80,9 +85,8 @@ public class BigSort {
 						.flatMap(
 								mergeWhenSizeIsMaxTempResources(comparator,
 										writer, reader, resourceFactory,
-										maxTempResources));
+										resourceDisposer, maxTempResources));
 			}
-
 		};
 	}
 
@@ -102,16 +106,24 @@ public class BigSort {
 			final Comparator<T> comparator,
 			final Func2<Observable<T>, Resource, Observable<Resource>> writer,
 			final Func1<Resource, Observable<T>> reader,
-			final Func0<Resource> resourceFactory, final int maxTempResources) {
+			final Func0<Resource> resourceFactory,
+			final Action1<Resource> resourceDisposer, final int maxTempResources) {
 		return new Func1<List<Resource>, Observable<Resource>>() {
 
 			@Override
-			public Observable<Resource> call(List<Resource> list) {
+			public Observable<Resource> call(final List<Resource> list) {
 				if (list.size() < maxTempResources)
 					return Observable.from(list);
 				else {
 					Resource resource = resourceFactory.call();
-					Observable<T> items = merge(list, comparator, reader);
+					Observable<T> items = merge(list, comparator, reader)
+							.doOnCompleted(new Action0() {
+								@Override
+								public void call() {
+									for (Resource resource : list)
+										resourceDisposer.call(resource);
+								}
+							});
 					return writer.call(items, resource);
 				}
 			}
@@ -173,7 +185,10 @@ public class BigSort {
 							t = v;
 					}
 				}
-				throw new RuntimeException("unexpected");
+				if (t == null)
+					throw new RuntimeException("unexpected");
+				else
+					return t;
 			}
 		};
 	}
