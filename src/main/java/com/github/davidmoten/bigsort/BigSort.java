@@ -78,9 +78,9 @@ public class BigSort {
 
 			@Override
 			public Observable<Resource> call(Observable<Resource> resources,
-					final Observable<Resource> f) {
+					final Observable<Resource> resource) {
 				return resources
-						.concatWith(f)
+						.concatWith(resource)
 						.toList()
 						.flatMap(
 								mergeWhenSizeIsMaxTempResources(comparator,
@@ -112,6 +112,7 @@ public class BigSort {
 
 			@Override
 			public Observable<Resource> call(final List<Resource> list) {
+				System.out.println("checking for merge:" + list);
 				if (list.size() < maxTempResources)
 					return Observable.from(list);
 				else {
@@ -120,8 +121,8 @@ public class BigSort {
 							.doOnCompleted(new Action0() {
 								@Override
 								public void call() {
-									for (Resource resource : list)
-										resourceDisposer.call(resource);
+									for (Resource r : list)
+										resourceDisposer.call(r);
 								}
 							});
 					return writer.call(items, resource);
