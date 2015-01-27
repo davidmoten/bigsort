@@ -18,6 +18,7 @@ import rx.functions.Func2;
 import rx.schedulers.Schedulers;
 
 import com.github.davidmoten.rx.Strings;
+import com.github.davidmoten.rx.operators.OperatorUnsubscribeEagerly;
 import com.github.davidmoten.rx.testing.TestingHelper;
 
 public class BigSortTest extends TestCase {
@@ -35,7 +36,7 @@ public class BigSortTest extends TestCase {
 	}
 
 	public void testLarge() {
-		final int n = 101;
+		final int n = 5;
 		Observable<Integer> source = Observable.range(0, n).map(
 				new Func1<Integer, Integer>() {
 					@Override
@@ -66,8 +67,8 @@ public class BigSortTest extends TestCase {
 			Func1<File, Observable<Integer>> reader = createReader();
 			Func0<File> resourceFactory = createResourceFactory();
 			Action1<File> resourceDisposer = createResourceDisposer();
-			int maxToSortInMemoryPerThread = 100;
-			int maxTempResources = 10;
+			int maxToSortInMemoryPerThread = 2;
+			int maxTempResources = 2;
 
 			return BigSort.sort(source, comparator, writer, reader,
 					resourceFactory, resourceDisposer,
@@ -91,8 +92,10 @@ public class BigSortTest extends TestCase {
 
 			@Override
 			public Observable<Integer> call(final File file) {
-				return Strings.split(Strings.from(file), "\n")
-						.filter(new Func1<String, Boolean>() {
+				return Strings
+						.split(Strings.from(file).lift(
+								OperatorUnsubscribeEagerly.<String> instance()),
+								"\n").filter(new Func1<String, Boolean>() {
 
 							@Override
 							public Boolean call(final String s) {
@@ -118,6 +121,7 @@ public class BigSortTest extends TestCase {
 
 					@Override
 					public FileOutputStream call() {
+						System.out.println("opening " + file);
 						try {
 							return new FileOutputStream(file);
 						} catch (FileNotFoundException e) {
@@ -132,6 +136,7 @@ public class BigSortTest extends TestCase {
 
 							@Override
 							public void call(Integer s) {
+								System.out.println("writing " + s);
 								try {
 									fos.write((s + "\n").getBytes(UTF8));
 								} catch (IOException e) {
@@ -151,12 +156,13 @@ public class BigSortTest extends TestCase {
 					@Override
 					public void call(FileOutputStream fos) {
 						try {
+							System.out.println("closing file");
 							fos.close();
 						} catch (IOException e) {
 							e.printStackTrace();
 						}
 					}
-				});
+				}).lift(OperatorUnsubscribeEagerly.<File> instance());
 			}
 		};
 	}

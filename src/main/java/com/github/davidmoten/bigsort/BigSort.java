@@ -1,5 +1,6 @@
 package com.github.davidmoten.bigsort;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -156,8 +157,25 @@ public class BigSort {
 				// keep going till all observables complete
 				.takeWhile(BigSort.<T> listHasOnNext())
 				// take miniumum
-				.map(BigSort.<T> toMinimum(comparator));
+				.flatMap(sortRow(comparator));
 
+	}
+
+	private static <T> Func1<List<Notification<T>>, Observable<T>> sortRow(
+			final Comparator<T> comparator) {
+		return new Func1<List<Notification<T>>, Observable<T>>() {
+
+			@Override
+			public Observable<T> call(List<Notification<T>> list) {
+				List<T> result = new ArrayList<T>();
+				for (Notification<T> notification : list) {
+					if (notification.isOnNext())
+						result.add(notification.getValue());
+				}
+				Collections.sort(result, comparator);
+				return Observable.from(result);
+			}
+		};
 	}
 
 	private static <T> Func1<Observable<T>, Observable<Notification<T>>> materializeAndRepeatOnCompleteIndefinitely() {
