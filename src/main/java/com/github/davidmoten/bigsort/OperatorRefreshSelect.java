@@ -2,6 +2,7 @@ package com.github.davidmoten.bigsort;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import rx.Observable;
 import rx.Observable.OnSubscribe;
@@ -12,10 +13,10 @@ import rx.functions.Func1;
 public class OperatorRefreshSelect<T> implements OnSubscribe<T> {
 
 	private final Iterable<Observable<T>> sources;
-	private final Func1<? extends List<? extends T>, T> selector;
+	private final Func1<? extends Set<? extends T>, T> selector;
 
 	public OperatorRefreshSelect(Iterable<Observable<T>> sources,
-			Func1<? extends List<? extends T>, T> selector) {
+			Func1<? extends Set<? extends T>, T> selector) {
 		this.sources = sources;
 		this.selector = selector;
 	}
@@ -28,16 +29,19 @@ public class OperatorRefreshSelect<T> implements OnSubscribe<T> {
 	private static class MyProducer<T> implements Producer {
 
 		private final Iterable<Observable<T>> sources;
-		private final List<Subscriber<T>> subscribers;
-		private final Func1<? extends List<? extends T>, T> selector;
+		private final List<SourceSubscriber<T>> subscribers;
+		private final Func1<? extends Set<? extends T>, T> selector;
 
 		public MyProducer(Iterable<Observable<T>> sources,
-				Func1<? extends List<? extends T>, T> selector) {
+				Func1<? extends Set<? extends T>, T> selector) {
 			this.sources = sources;
 			this.selector = selector;
-			this.subscribers = new ArrayList<Subscriber<T>>();
+			this.subscribers = new ArrayList<SourceSubscriber<T>>();
 			for (Observable<T> source : sources) {
 				subscribers.add(new SourceSubscriber<T>(source));
+			}
+			for (SourceSubscriber<T> ss : subscribers) {
+				ss.requestMore(1);
 			}
 		}
 
@@ -51,6 +55,10 @@ public class OperatorRefreshSelect<T> implements OnSubscribe<T> {
 	private static class SourceSubscriber<T> extends Subscriber<T> {
 
 		public SourceSubscriber(Observable<T> source) {
+		}
+
+		void requestMore(long n) {
+			request(n);
 		}
 
 		@Override
