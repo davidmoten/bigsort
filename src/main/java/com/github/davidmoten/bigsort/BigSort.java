@@ -1,5 +1,8 @@
 package com.github.davidmoten.bigsort;
 
+import static com.github.davidmoten.util.Optional.absent;
+import static com.github.davidmoten.util.Optional.of;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -15,6 +18,8 @@ import rx.functions.Func0;
 import rx.functions.Func1;
 import rx.functions.Func2;
 import rx.functions.FuncN;
+
+import com.github.davidmoten.util.Optional;
 
 public class BigSort {
 
@@ -145,20 +150,43 @@ public class BigSort {
 
 	private static <T, Resource> Observable<T> merge(List<Resource> resources,
 			final Comparator<T> comparator,
-			Func1<Resource, Observable<T>> reader) {
-		return Observable
-				.zip(Observable.from(resources)
-				// read
-						.map(reader)
-						// materialize and ensure each stream does not complete
-						.map(BigSort
-								.<T> materializeAndRepeatOnCompleteIndefinitely()),
-						BigSort.<Notification<T>> toList())
-				// keep going till all observables complete
-				.takeWhile(BigSort.<T> listHasOnNext())
-				// take miniumum
-				.flatMap(sortRow(comparator));
+			final Func1<Resource, Observable<T>> reader) {
+		return Observable.just(resources).flatMap(
+				new Func1<List<Resource>, Observable<T>>() {
 
+					@Override
+					public Observable<T> call(List<Resource> resources) {
+						List<Observable<T>> obs = new ArrayList<Observable<T>>();
+						for (Resource resource : resources) {
+							obs.add(reader.call(resource));
+						}
+						return Observable
+								.create(new OnSubscribeRefreshSelect<T>(obs,
+										BigSort.<T> minimum(comparator)));
+					}
+				});
+
+	}
+
+	private static <T> Func1<List<T>, Integer> minimum(
+			final Comparator<T> comparator) {
+		return new Func1<List<T>, Integer>() {
+
+			@Override
+			public Integer call(List<T> list) {
+				Optional<Integer> index = absent();
+				Optional<T> min = Optional.absent();
+				for (int i = 0; i < list.size(); i++) {
+					T value = list.get(i);
+					if (!index.isPresent()
+							|| comparator.compare(value, min.get()) < 0) {
+						index = of(i);
+						min = of(value);
+					}
+				}
+				return index.get();
+			}
+		};
 	}
 
 	private static <T> Func1<List<Notification<T>>, Observable<T>> sortRow(
