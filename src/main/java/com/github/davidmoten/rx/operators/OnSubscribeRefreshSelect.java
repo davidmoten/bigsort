@@ -134,6 +134,17 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 		}
 
 		private void emitAndRequest() {
+			// avoid stack overflow
+			worker.schedule(new Action0() {
+
+				@Override
+				public void call() {
+					emitAndRequestTask();
+				}
+			});
+		}
+
+		private void emitAndRequestTask() {
 			int presentNotUsed = countPresentNotUsed(subscribers);
 			int active = countActive(subscribers);
 			boolean ok = presentNotUsed >= active && active > 0;
@@ -153,26 +164,15 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 				final SourceSubscriber<T> subscriber = subscribers.get(index);
 				subscriber.markUsed();
 				drainQueue();
-				worker.schedule(new Action0() {
-					@Override
-					public void call() {
-						if (!subscriber.isCompleted()) {
-							addRequest(expected, 1);
-							subscribers.get(i).requestMore(1);
-						}
-					}
-				});
-			}
-			worker.schedule(new Action0() {
-				@Override
-				public void call() {
-					if (countActive(subscribers) == 0) {
-						queue.add(on.completed());
-						drainQueue();
-					}
+				if (!subscriber.isCompleted()) {
+					addRequest(expected, 1);
+					subscribers.get(i).requestMore(1);
 				}
-			});
-
+			}
+			if (countActive(subscribers) == 0) {
+				queue.add(on.completed());
+				drainQueue();
+			}
 		}
 
 		private List<IndexValue<T>> indexValues(
