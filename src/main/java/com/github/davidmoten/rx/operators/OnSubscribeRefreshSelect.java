@@ -1,4 +1,4 @@
-package com.github.davidmoten.bigsort;
+package com.github.davidmoten.rx.operators;
 
 import java.util.ArrayList;
 import java.util.Deque;
@@ -10,9 +10,12 @@ import java.util.concurrent.atomic.AtomicLong;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Producer;
+import rx.Scheduler.Worker;
 import rx.Subscriber;
+import rx.functions.Action0;
 import rx.functions.Func1;
 import rx.internal.operators.NotificationLite;
+import rx.schedulers.Schedulers;
 
 import com.github.davidmoten.util.Optional;
 
@@ -41,8 +44,10 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 		private final Subscriber<? super T> child;
 		private final AtomicLong expected = new AtomicLong();
 		private final Deque<Object> queue = new LinkedList<Object>();
-		private Object lock;
+		private Object lock = new Object();
 		private final AtomicBoolean firstTime = new AtomicBoolean(true);
+
+		private final Worker worker;
 
 		public MyProducer(Iterable<Observable<T>> sources,
 				Func1<List<T>, Integer> selector, Subscriber<? super T> child) {
@@ -58,7 +63,20 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 				source.subscribe(subscriber);
 				i++;
 			}
+			worker = Schedulers.trampoline().createWorker();
+		}
 
+		private static void addRequest(AtomicLong expected, long n) {
+			while (true) {
+				// lock free updater
+				long current = expected.get();
+				long next = current + n;
+				// check for addition past MAX_VALUE
+				if (next < 0)
+					next = Long.MAX_VALUE;
+				if (expected.compareAndSet(current, next))
+					break;
+			}
 		}
 
 		@Override
@@ -67,23 +85,16 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 				return;
 
 			if (firstTime.compareAndSet(true, false)) {
-				for (SourceSubscriber<T> subscriber : subscribers)
+				for (SourceSubscriber<T> subscriber : subscribers) {
 					subscriber.requestMore(1);
+					addRequest(expected, 1);
+				}
 			}
 			if (expected.get() == Long.MAX_VALUE) {
 				if (n == Long.MAX_VALUE)
 					expected.set(n);
 				else {
-					while (true) {
-						// lock free updater
-						long current = expected.get();
-						long next = current + n;
-						// check for addition past MAX_VALUE
-						if (next < 0)
-							next = Long.MAX_VALUE;
-						if (expected.compareAndSet(current, next))
-							break;
-					}
+					addRequest(expected, n);
 				}
 			}
 			synchronized (lock) {
@@ -105,6 +116,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 		}
 
 		public void onNext(T t, int index) {
+			System.out.println("subscriber " + index + " emitted " + t);
 			synchronized (lock) {
 				emitAndRequest();
 			}
@@ -118,25 +130,49 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 				this.index = index;
 				this.value = value;
 			}
+
 		}
 
 		private void emitAndRequest() {
-
-			if (countPresent(subscribers) >= countActive(subscribers)) {
+			int presentNotUsed = countPresentNotUsed(subscribers);
+			int active = countActive(subscribers);
+			boolean ok = presentNotUsed >= active && active > 0;
+			System.out.println("presentNotUsed=" + presentNotUsed + ", active="
+					+ active);
+			if (ok) {
+				System.out.println("selecting an item to emit");
 				List<IndexValue<T>> indexValues = indexValues(subscribers);
 				List<T> values = values(indexValues);
-				int i = selector.call(values);
+				final int i = selector.call(values);
 				// find which subscriber reported the value
 				int index = indexValues.get(i).index;
 				// emit the value
+				System.out.println("adding " + values.get(i) + " to queue");
 				queue.add(on.next(values.get(i)));
 				// mark value as used and request more
-				SourceSubscriber<T> subscriber = subscribers.get(index);
+				final SourceSubscriber<T> subscriber = subscribers.get(index);
 				subscriber.markUsed();
 				drainQueue();
-				if (!subscriber.isCompleted())
-					subscribers.get(i).requestMore(1);
+				worker.schedule(new Action0() {
+					@Override
+					public void call() {
+						if (!subscriber.isCompleted()) {
+							addRequest(expected, 1);
+							subscribers.get(i).requestMore(1);
+						}
+					}
+				});
 			}
+			worker.schedule(new Action0() {
+				@Override
+				public void call() {
+					if (countActive(subscribers) == 0) {
+						queue.add(on.completed());
+						drainQueue();
+					}
+				}
+			});
+
 		}
 
 		private List<IndexValue<T>> indexValues(
@@ -158,11 +194,11 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 			return list;
 		}
 
-		private static <T> int countPresent(
+		private static <T> int countPresentNotUsed(
 				List<SourceSubscriber<T>> subscribers) {
 			int count = 0;
 			for (SourceSubscriber<T> subscriber : subscribers)
-				if (subscriber.latest().isPresent())
+				if (subscriber.latest().isPresent() && !subscriber.used())
 					count++;
 			return count;
 		}
@@ -170,7 +206,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 		private static <T> int countActive(List<SourceSubscriber<T>> subscribers) {
 			int count = 0;
 			for (SourceSubscriber<T> subscriber : subscribers)
-				if (!subscriber.isCompleted() && !subscriber.used())
+				if (!subscriber.isCompleted() || !subscriber.used())
 					count++;
 			return count;
 		}
@@ -190,6 +226,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 					// decrement
 					if (expected.get() != Long.MAX_VALUE)
 						expected.decrementAndGet();
+					System.out.println("emitting to child " + item);
 					on.accept(child, queue.poll());
 				}
 			}

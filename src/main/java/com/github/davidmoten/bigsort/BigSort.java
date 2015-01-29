@@ -4,12 +4,10 @@ import static com.github.davidmoten.util.Optional.absent;
 import static com.github.davidmoten.util.Optional.of;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-import rx.Notification;
 import rx.Observable;
 import rx.Scheduler;
 import rx.functions.Action0;
@@ -17,8 +15,8 @@ import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
 import rx.functions.Func2;
-import rx.functions.FuncN;
 
+import com.github.davidmoten.rx.operators.OnSubscribeRefreshSelect;
 import com.github.davidmoten.util.Optional;
 
 public class BigSort {
@@ -157,23 +155,23 @@ public class BigSort {
 					@Override
 					public Observable<T> call(List<Resource> resources) {
 						List<Observable<T>> obs = new ArrayList<Observable<T>>();
-						for (Resource resource : resources) {
+						for (Resource resource : resources)
 							obs.add(reader.call(resource));
-						}
 						return Observable
 								.create(new OnSubscribeRefreshSelect<T>(obs,
 										BigSort.<T> minimum(comparator)));
 					}
 				});
-
 	}
 
-	private static <T> Func1<List<T>, Integer> minimum(
+	public static <T> Func1<List<T>, Integer> minimum(
 			final Comparator<T> comparator) {
 		return new Func1<List<T>, Integer>() {
 
 			@Override
 			public Integer call(List<T> list) {
+				if (list.isEmpty())
+					throw new RuntimeException("list cannot be empty");
 				Optional<Integer> index = absent();
 				Optional<T> min = Optional.absent();
 				for (int i = 0; i < list.size(); i++) {
@@ -185,80 +183,6 @@ public class BigSort {
 					}
 				}
 				return index.get();
-			}
-		};
-	}
-
-	private static <T> Func1<List<Notification<T>>, Observable<T>> sortRow(
-			final Comparator<T> comparator) {
-		return new Func1<List<Notification<T>>, Observable<T>>() {
-
-			@Override
-			public Observable<T> call(List<Notification<T>> list) {
-				List<T> result = new ArrayList<T>();
-				for (Notification<T> notification : list) {
-					if (notification.isOnNext())
-						result.add(notification.getValue());
-				}
-				Collections.sort(result, comparator);
-				return Observable.from(result);
-			}
-		};
-	}
-
-	private static <T> Func1<Observable<T>, Observable<Notification<T>>> materializeAndRepeatOnCompleteIndefinitely() {
-		return new Func1<Observable<T>, Observable<Notification<T>>>() {
-
-			@Override
-			public Observable<Notification<T>> call(Observable<T> o) {
-				return o.materialize().concatWith(
-						Observable.just(Notification.<T> createOnCompleted())
-								.repeat());
-			}
-		};
-	}
-
-	private static <T> FuncN<List<T>> toList() {
-		return new FuncN<List<T>>() {
-
-			@SuppressWarnings("unchecked")
-			@Override
-			public List<T> call(Object... items) {
-				return Arrays.asList((T[]) items);
-			}
-		};
-	}
-
-	private static <T> Func1<List<Notification<T>>, Boolean> listHasOnNext() {
-		return new Func1<List<Notification<T>>, Boolean>() {
-			@Override
-			public Boolean call(List<Notification<T>> list) {
-				for (Notification<T> notif : list)
-					if (notif.isOnNext())
-						return true;
-				return false;
-			}
-		};
-	}
-
-	private static <T> Func1<List<Notification<T>>, T> toMinimum(
-			final Comparator<T> comparator) {
-		return new Func1<List<Notification<T>>, T>() {
-
-			@Override
-			public T call(List<Notification<T>> list) {
-				T t = null;
-				for (Notification<T> notification : list) {
-					if (notification.isOnNext()) {
-						T v = notification.getValue();
-						if (t == null || comparator.compare(v, t) < 0)
-							t = v;
-					}
-				}
-				if (t == null)
-					throw new RuntimeException("unexpected");
-				else
-					return t;
 			}
 		};
 	}
