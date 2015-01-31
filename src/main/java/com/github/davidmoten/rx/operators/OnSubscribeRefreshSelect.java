@@ -1,12 +1,14 @@
 package com.github.davidmoten.rx.operators;
 
+import static com.github.davidmoten.util.Optional.of;
+
 import java.util.ArrayList;
-import java.util.Deque;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 
+import rx.Notification;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Producer;
@@ -36,34 +38,59 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 	}
 
 	private static class MyProducer<T> implements Producer {
-
-		private NotificationLite<T> on = NotificationLite.instance();
+		private final NotificationLite<T> on = NotificationLite.instance();
 
 		private final List<SourceSubscriber<T>> subscribers;
 		private final Func1<List<T>, Integer> selector;
 		private final Subscriber<? super T> child;
 		private final AtomicLong expected = new AtomicLong();
-		private final Deque<Object> queue = new LinkedList<Object>();
-		private Object lock = new Object();
 		private final AtomicBoolean firstTime = new AtomicBoolean(true);
-
+		private final AtomicReferenceArray<SubscriberStatus<T>> status;
 		private final Worker worker;
 
 		public MyProducer(Iterable<Observable<T>> sources,
 				Func1<List<T>, Integer> selector, Subscriber<? super T> child) {
 			this.selector = selector;
 			this.child = child;
+			this.worker = Schedulers.trampoline().createWorker();
 			this.subscribers = new ArrayList<SourceSubscriber<T>>();
 
-			int i = 0;
-			for (Observable<T> source : sources) {
-				SourceSubscriber<T> subscriber = new SourceSubscriber<T>(this,
-						i);
-				subscribers.add(subscriber);
-				source.subscribe(subscriber);
-				i++;
+			{
+				int i = 0;
+				for (Observable<T> source : sources) {
+					SourceSubscriber<T> subscriber = new SourceSubscriber<T>(
+							this, i);
+					subscribers.add(subscriber);
+					// nothing should be started by the subscriber because
+					// onStart
+					// requests 0
+					source.subscribe(subscriber);
+					i++;
+				}
 			}
-			worker = Schedulers.trampoline().createWorker();
+			status = new AtomicReferenceArray<SubscriberStatus<T>>(
+					subscribers.size());
+			for (int i = 0; i < subscribers.size(); i++) {
+				status.set(i, new SubscriberStatus<T>(Optional.<T> absent(),
+						false, false));
+			}
+		}
+
+		private static class SubscriberStatus<T> {
+			final Optional<T> latest;
+			final boolean completed;
+			final boolean used;
+
+			SubscriberStatus(Optional<T> latest, boolean completed, boolean used) {
+				this.latest = latest;
+				this.completed = completed;
+				this.used = used;
+			}
+
+			static <T> SubscriberStatus<T> create(Optional<T> latest,
+					boolean completed, boolean used) {
+				return new SubscriberStatus<T>(latest, completed, used);
+			}
 		}
 
 		private static void addRequest(AtomicLong expected, long n) {
@@ -86,8 +113,8 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 
 			if (firstTime.compareAndSet(true, false)) {
 				for (SourceSubscriber<T> subscriber : subscribers) {
-					subscriber.requestMore(1);
 					addRequest(expected, 1);
+					subscriber.requestOneMore();
 				}
 			}
 			if (expected.get() == Long.MAX_VALUE) {
@@ -96,29 +123,6 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 				else {
 					addRequest(expected, n);
 				}
-			}
-			synchronized (lock) {
-				drainQueue();
-			}
-		}
-
-		public void onCompleted(int index) {
-			synchronized (lock) {
-				emitAndRequest();
-			}
-		}
-
-		public void onError(Throwable e, int index) {
-			synchronized (lock) {
-				queue.add(on.error(e));
-				drainQueue();
-			}
-		}
-
-		public void onNext(T t, int index) {
-			System.out.println("subscriber " + index + " emitted " + t);
-			synchronized (lock) {
-				emitAndRequest();
 			}
 		}
 
@@ -133,103 +137,61 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 
 		}
 
-		private void emitAndRequest() {
-			// avoid stack overflow
-			worker.schedule(new Action0() {
-
-				@Override
-				public void call() {
-					emitAndRequestTask();
-				}
-			});
-		}
-
-		private void emitAndRequestTask() {
-			int presentNotUsed = countPresentNotUsed(subscribers);
-			int active = countActive(subscribers);
-			boolean ok = presentNotUsed >= active && active > 0;
-			System.out.println("presentNotUsed=" + presentNotUsed + ", active="
-					+ active);
-			if (ok) {
-				System.out.println("selecting an item to emit");
-				List<IndexValue<T>> indexValues = indexValues(subscribers);
-				List<T> values = values(indexValues);
-				final int i = selector.call(values);
-				// find which subscriber reported the value
-				int index = indexValues.get(i).index;
-				// emit the value
-				System.out.println("adding " + values.get(i) + " to queue");
-				queue.add(on.next(values.get(i)));
-				// mark value as used and request more
-				final SourceSubscriber<T> subscriber = subscribers.get(index);
-				subscriber.markUsed();
-				drainQueue();
-				if (!subscriber.isCompleted()) {
-					addRequest(expected, 1);
-					subscribers.get(i).requestMore(1);
+		public synchronized void event(int index, Notification<T> event) {
+			SubscriberStatus<T> st = status.get(index);
+			if (event.isOnCompleted()) {
+				status.set(index,
+						SubscriberStatus.create(st.latest, true, st.used));
+			} else if (event.isOnError()) {
+				child.onError(event.getThrowable());
+			} else {
+				T value = event.getValue();
+				status.set(index, SubscriberStatus.create(Optional.of(value),
+						false, false));
+				// if there are enough values then select one for emission and
+				// emit it to the child subscriber
+				List<IndexValue<T>> indexValues = getIndexValues();
+				int active = countActive();
+				if (indexValues.size() >= active) {
+					final IndexValue<T> selected = select(indexValues);
+					status.set(selected.index, SubscriberStatus.<T> create(
+							of(selected.value), false, true));
+					child.onNext(selected.value);
+					worker.schedule(new Action0() {
+						@Override
+						public void call() {
+							subscribers.get(selected.index).requestOneMore();
+						}
+					});
 				}
 			}
-			if (countActive(subscribers) == 0) {
-				queue.add(on.completed());
-				drainQueue();
+		}
+
+		private int countActive() {
+			int active = 0;
+			for (int i = 0; i < status.length(); i++) {
+				if (!status.get(i).used || status.get(i).completed)
+					active++;
 			}
+			return active;
 		}
 
-		private List<IndexValue<T>> indexValues(
-				List<SourceSubscriber<T>> subscribers) {
-			List<IndexValue<T>> list = new ArrayList<IndexValue<T>>(
-					subscribers.size());
-			for (int i = 0; i < subscribers.size(); i++) {
-				Optional<T> latest = subscribers.get(i).latest();
-				if (latest.isPresent() && !subscribers.get(i).used())
-					list.add(new IndexValue<T>(i, latest.get()));
+		private List<IndexValue<T>> getIndexValues() {
+			List<IndexValue<T>> indexValues = new ArrayList<IndexValue<T>>();
+			for (int i = 0; i < status.length(); i++) {
+				if (!status.get(i).used && !status.get(i).latest.isPresent())
+					indexValues.add(new IndexValue<T>(i, status.get(i).latest
+							.get()));
 			}
-			return list;
+			return indexValues;
 		}
 
-		private static <T> List<T> values(List<IndexValue<T>> indexValues) {
-			List<T> list = new ArrayList<T>(indexValues.size());
-			for (IndexValue<T> iv : indexValues)
-				list.add(iv.value);
-			return list;
-		}
-
-		private static <T> int countPresentNotUsed(
-				List<SourceSubscriber<T>> subscribers) {
-			int count = 0;
-			for (SourceSubscriber<T> subscriber : subscribers)
-				if (subscriber.latest().isPresent() && !subscriber.used())
-					count++;
-			return count;
-		}
-
-		private static <T> int countActive(List<SourceSubscriber<T>> subscribers) {
-			int count = 0;
-			for (SourceSubscriber<T> subscriber : subscribers)
-				if (!subscriber.isCompleted() || !subscriber.used())
-					count++;
-			return count;
-		}
-
-		private void drainQueue() {
-			while (true) {
-				Object item = queue.peek();
-				if (item == null || child.isUnsubscribed())
-					break;
-				else if (on.isCompleted(item) || on.isError(item)) {
-					on.accept(child, queue.poll());
-					break;
-				} else if (expected.get() == 0)
-					break;
-				else {
-					// expected won't be Long.MAX_VALUE so can safely
-					// decrement
-					if (expected.get() != Long.MAX_VALUE)
-						expected.decrementAndGet();
-					System.out.println("emitting to child " + item);
-					on.accept(child, queue.poll());
-				}
+		private IndexValue<T> select(List<IndexValue<T>> indexValues) {
+			List<T> a = new ArrayList<T>(indexValues.size());
+			for (IndexValue<T> iv : indexValues) {
+				a.add(iv.value);
 			}
+			return indexValues.get(selector.call(a));
 		}
 
 	}
@@ -238,34 +200,14 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 
 		private final MyProducer<T> producer;
 		private final int index;
-		private volatile boolean completed = false;
-		private volatile Optional<T> latest = Optional.absent();
-		// latest has been used
-		private volatile boolean used = false;
 
 		SourceSubscriber(MyProducer<T> producer, int index) {
 			this.producer = producer;
 			this.index = index;
 		}
 
-		void requestMore(long n) {
-			request(n);
-		}
-
-		Optional<T> latest() {
-			return latest;
-		}
-
-		boolean used() {
-			return used;
-		}
-
-		void markUsed() {
-			used = true;
-		}
-
-		boolean isCompleted() {
-			return completed;
+		void requestOneMore() {
+			request(1);
 		}
 
 		@Override
@@ -276,21 +218,17 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 
 		@Override
 		public void onCompleted() {
-			completed = true;
-			producer.onCompleted(index);
+			producer.event(index, Notification.<T> createOnCompleted());
 		}
 
 		@Override
 		public void onError(Throwable e) {
-			producer.onError(e, index);
-
+			producer.event(index, Notification.<T> createOnError(e));
 		}
 
 		@Override
 		public void onNext(T t) {
-			latest = Optional.of(t);
-			used = false;
-			producer.onNext(t, index);
+			producer.event(index, Notification.<T> createOnNext(t));
 		}
 
 	}
