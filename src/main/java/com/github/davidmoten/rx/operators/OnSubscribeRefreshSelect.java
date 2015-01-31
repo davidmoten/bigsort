@@ -116,6 +116,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 					addRequest(expected, 1);
 					subscriber.requestOneMore();
 				}
+
 			}
 			if (expected.get() == Long.MAX_VALUE) {
 				if (n == Long.MAX_VALUE)
@@ -142,35 +143,54 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 			if (event.isOnCompleted()) {
 				status.set(index,
 						SubscriberStatus.create(st.latest, true, st.used));
+				if (countUnused() == 0) {
+					for (int i = 1; i <= getIndexValues().size(); i++)
+						emit(false);
+					child.onCompleted();
+				}
 			} else if (event.isOnError()) {
 				child.onError(event.getThrowable());
 			} else {
 				T value = event.getValue();
 				status.set(index, SubscriberStatus.create(Optional.of(value),
 						false, false));
-				// if there are enough values then select one for emission and
-				// emit it to the child subscriber
-				List<IndexValue<T>> indexValues = getIndexValues();
-				int active = countActive();
-				if (indexValues.size() >= active) {
-					final IndexValue<T> selected = select(indexValues);
-					status.set(selected.index, SubscriberStatus.<T> create(
-							of(selected.value), false, true));
-					child.onNext(selected.value);
+				emit(true);
+			}
+		}
+
+		private void emit(boolean requestMore) {
+			// if there are enough values then select one for emission and
+			// emit it to the child subscriber
+			List<IndexValue<T>> indexValues = getIndexValues();
+			int active = countActive();
+			if (indexValues.size() >= active) {
+				final IndexValue<T> selected = select(indexValues);
+				status.set(selected.index, SubscriberStatus.<T> create(
+						of(selected.value), false, true));
+				child.onNext(selected.value);
+				if (requestMore)
 					worker.schedule(new Action0() {
 						@Override
 						public void call() {
 							subscribers.get(selected.index).requestOneMore();
 						}
 					});
-				}
 			}
+		}
+
+		private int countUnused() {
+			int count = 0;
+			for (int i = 0; i < status.length(); i++) {
+				if (!status.get(i).used)
+					count++;
+			}
+			return count;
 		}
 
 		private int countActive() {
 			int active = 0;
 			for (int i = 0; i < status.length(); i++) {
-				if (!status.get(i).used || status.get(i).completed)
+				if (!status.get(i).used || !status.get(i).completed)
 					active++;
 			}
 			return active;
@@ -179,7 +199,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 		private List<IndexValue<T>> getIndexValues() {
 			List<IndexValue<T>> indexValues = new ArrayList<IndexValue<T>>();
 			for (int i = 0; i < status.length(); i++) {
-				if (!status.get(i).used && !status.get(i).latest.isPresent())
+				if (!status.get(i).used && status.get(i).latest.isPresent())
 					indexValues.add(new IndexValue<T>(i, status.get(i).latest
 							.get()));
 			}
