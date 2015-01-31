@@ -139,11 +139,12 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 		}
 
 		public synchronized void event(int index, Notification<T> event) {
+			System.out.println(index + ":" + event);
 			SubscriberStatus<T> st = status.get(index);
 			if (event.isOnCompleted()) {
 				status.set(index,
 						SubscriberStatus.create(st.latest, true, st.used));
-				if (countUnused() == 0) {
+				if (countNotCompleted() == 0) {
 					for (int i = 1; i <= getIndexValues().size(); i++)
 						emit(false);
 					child.onCompleted();
@@ -172,16 +173,20 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 					worker.schedule(new Action0() {
 						@Override
 						public void call() {
-							subscribers.get(selected.index).requestOneMore();
+							if (!status.get(selected.index).completed)
+								subscribers.get(selected.index)
+										.requestOneMore();
+							else
+								emit(true);
 						}
 					});
 			}
 		}
 
-		private int countUnused() {
+		private int countNotCompleted() {
 			int count = 0;
 			for (int i = 0; i < status.length(); i++) {
-				if (!status.get(i).used)
+				if (!status.get(i).completed)
 					count++;
 			}
 			return count;
@@ -227,6 +232,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 		}
 
 		void requestOneMore() {
+			System.out.println("requesting one more from " + index);
 			request(1);
 		}
 
