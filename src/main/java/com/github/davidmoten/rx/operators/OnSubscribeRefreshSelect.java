@@ -166,8 +166,10 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 			int active = countActive();
 			if (indexValues.size() >= active) {
 				final IndexValue<T> selected = select(indexValues);
+				SubscriberStatus<T> st = status.get(selected.index);
 				status.set(selected.index, SubscriberStatus.<T> create(
-						of(selected.value), false, true));
+						of(selected.value), st.completed, true));
+				System.out.println("-> " + selected.value);
 				child.onNext(selected.value);
 				if (requestMore)
 					worker.schedule(new Action0() {
