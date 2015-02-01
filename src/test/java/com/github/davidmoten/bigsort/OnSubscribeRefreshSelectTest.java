@@ -23,7 +23,7 @@ public class OnSubscribeRefreshSelectTest {
 		}
 	};
 
-	@Test(timeout = 10000)
+	@Test(timeout = 1000000000)
 	public void test1() {
 		checkEquals(asList(1, 2, 3), just(1, 2), just(3).onBackpressureBuffer());
 	}

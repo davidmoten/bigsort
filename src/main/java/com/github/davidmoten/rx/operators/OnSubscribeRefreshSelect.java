@@ -123,6 +123,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 						nextRequestFrom.set(0);
 					else
 						subscriber.requestOneMore();
+					first = false;
 				}
 
 			}
