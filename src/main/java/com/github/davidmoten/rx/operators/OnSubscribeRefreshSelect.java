@@ -5,6 +5,7 @@ import static com.github.davidmoten.util.Optional.of;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
@@ -47,6 +48,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 		private final AtomicBoolean firstTime = new AtomicBoolean(true);
 		private final AtomicReferenceArray<SubscriberStatus<T>> status;
 		private final Worker worker;
+		private final AtomicInteger nextRequestFrom = new AtomicInteger(-1);
 
 		public MyProducer(Iterable<Observable<T>> sources,
 				Func1<List<T>, Integer> selector, Subscriber<? super T> child) {
@@ -114,7 +116,13 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 			if (firstTime.compareAndSet(true, false)) {
 				boolean first = true;
 				for (SourceSubscriber<T> subscriber : subscribers) {
-					subscriber.requestOneMore();
+					// don't request the first beccause as soon as we have that
+					// we have enough to emit. Wait for a backpressure request
+					// first.
+					if (first)
+						nextRequestFrom.set(0);
+					else
+						subscriber.requestOneMore();
 				}
 
 			}
@@ -125,6 +133,17 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 					addRequest(expected, n);
 				}
 			}
+			drainRequest();
+		}
+
+		private synchronized void drainRequest() {
+			if (expected.get() == 0 || nextRequestFrom.get() == -1)
+				return;
+			if (expected.get() != Long.MAX_VALUE) {
+				expected.decrementAndGet();
+			}
+			nextRequestFrom.set(-1);
+			subscribers.get(nextRequestFrom.get()).requestOneMore();
 		}
 
 		private static class IndexValue<T> {
@@ -181,10 +200,10 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 					worker.schedule(new Action0() {
 						@Override
 						public void call() {
-							if (!status.get(selected.index).completed)
-								subscribers.get(selected.index)
-										.requestOneMore();
-							else
+							if (!status.get(selected.index).completed) {
+								nextRequestFrom.set(selected.index);
+								drainRequest();
+							} else
 								process(true);
 						}
 					});
