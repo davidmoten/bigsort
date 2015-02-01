@@ -112,8 +112,8 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 				return;
 
 			if (firstTime.compareAndSet(true, false)) {
+				boolean first = true;
 				for (SourceSubscriber<T> subscriber : subscribers) {
-					addRequest(expected, 1);
 					subscriber.requestOneMore();
 				}
 
