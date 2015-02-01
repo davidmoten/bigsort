@@ -135,27 +135,33 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 				this.index = index;
 				this.value = value;
 			}
-
 		}
 
 		public synchronized void event(int index, Notification<T> event) {
 			System.out.println(index + ":" + event);
-			SubscriberStatus<T> st = status.get(index);
-			if (event.isOnCompleted()) {
-				status.set(index,
-						SubscriberStatus.create(st.latest, true, st.used));
-				if (countNotCompleted() == 0) {
-					for (int i = 1; i <= getIndexValues().size(); i++)
-						process(false);
-					child.onCompleted();
-				}
-			} else if (event.isOnError()) {
+
+			if (event.isOnCompleted())
+				handleCompleted(index);
+			else if (event.isOnError())
 				child.onError(event.getThrowable());
-			} else {
-				T value = event.getValue();
-				status.set(index, SubscriberStatus.create(Optional.of(value),
-						false, false));
-				process(true);
+			else
+				handleOnNext(index, event);
+		}
+
+		private void handleOnNext(int index, Notification<T> event) {
+			T value = event.getValue();
+			status.set(index,
+					SubscriberStatus.create(Optional.of(value), false, false));
+			process(true);
+		}
+
+		private void handleCompleted(int index) {
+			SubscriberStatus<T> st = status.get(index);
+			status.set(index, SubscriberStatus.create(st.latest, true, st.used));
+			if (countNotCompleted() == 0) {
+				for (int i = 1; i <= getIndexValues().size(); i++)
+					process(false);
+				child.onCompleted();
 			}
 		}
 
