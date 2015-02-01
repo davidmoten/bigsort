@@ -137,6 +137,8 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 		}
 
 		private synchronized void drainRequest() {
+			System.out.println("draining requests, expected=" + expected
+					+ ",nextRequestFrom=" + nextRequestFrom);
 			if (expected.get() == 0 || nextRequestFrom.get() == -1)
 				return;
 			if (expected.get() != Long.MAX_VALUE) {
