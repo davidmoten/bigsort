@@ -23,7 +23,7 @@ public class OnSubscribeRefreshSelectTest {
 		}
 	};
 
-	@Test(timeout = 1000000000)
+	@Test(timeout = 10000)
 	public void test1() {
 		checkEquals(asList(1, 2, 3), just(1, 2), just(3).onBackpressureBuffer());
 	}
@@ -32,6 +32,17 @@ public class OnSubscribeRefreshSelectTest {
 	public void test2() {
 		checkEquals(asList(1, 2, 3, 3, 4, 4, 5, 6, 6, 7), just(1, 2, 5, 6),
 				just(3, 4, 4, 7), just(3, 6));
+	}
+
+	@Test(timeout = 10000)
+	public void test3() {
+		checkEquals(asList(1), Observable.<Integer> empty(), just(1)
+				.onBackpressureBlock());
+	}
+
+	@Test(timeout = 10000)
+	public void test4() {
+		checkEquals(asList(1, 2), Observable.<Integer> empty(), just(1, 2));
 	}
 
 	private static void checkEquals(List<Integer> expected,
