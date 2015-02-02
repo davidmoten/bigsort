@@ -64,6 +64,21 @@ public class OnSubscribeRefreshSelectTest {
 				.onBackpressureBuffer());
 	}
 
+	@SuppressWarnings("unchecked")
+	@Test(timeout = 100000000)
+	public void test7() {
+		checkEquals(asList(1, 2, 4, 5, 7, 8, 9), just(1, 2, 4),
+				Observable.<Integer> empty(), just(5, 7), just(8, 9));
+	}
+
+	@SuppressWarnings("unchecked")
+	@Test(timeout = 100000000)
+	public void test8() {
+		checkEquals(asList(1, 2, 4, 5, 7, 8, 9),
+				just(1).onBackpressureBuffer(), Observable.<Integer> empty(),
+				just(2, 4), just(5, 7), just(8, 9));
+	}
+
 	private static void checkEquals(List<Integer> expected,
 			Observable<Integer>... input) {
 		Observable<Integer> o = Observable
