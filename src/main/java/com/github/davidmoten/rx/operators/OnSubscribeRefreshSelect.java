@@ -110,8 +110,17 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 
 		@Override
 		public void request(long n) {
+			System.out.println(n + " requested");
 			if (n <= 0)
 				return;
+
+			if (expected.get() == Long.MAX_VALUE)
+				return;
+			if (n == Long.MAX_VALUE)
+				expected.set(n);
+			else {
+				addRequest(expected, n);
+			}
 
 			if (firstTime.compareAndSet(true, false)) {
 				boolean first = true;
@@ -127,17 +136,11 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 				}
 
 			}
-			if (expected.get() == Long.MAX_VALUE) {
-				if (n == Long.MAX_VALUE)
-					expected.set(n);
-				else {
-					addRequest(expected, n);
-				}
-			}
-			drainRequest();
+
+			performPendingRequest();
 		}
 
-		private synchronized void drainRequest() {
+		private synchronized void performPendingRequest() {
 			System.out.println("draining requests, expected=" + expected
 					+ ",nextRequestFrom=" + nextRequestFrom);
 			if (expected.get() == 0 || nextRequestFrom.get() == -1)
@@ -145,8 +148,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 			if (expected.get() != Long.MAX_VALUE) {
 				expected.decrementAndGet();
 			}
-			nextRequestFrom.set(-1);
-			subscribers.get(nextRequestFrom.get()).requestOneMore();
+			subscribers.get(nextRequestFrom.getAndSet(-1)).requestOneMore();
 		}
 
 		private static class IndexValue<T> {
@@ -172,22 +174,29 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 
 		private void handleOnNext(int index, Notification<T> event) {
 			T value = event.getValue();
-			status.set(index,
-					SubscriberStatus.create(Optional.of(value), false, false));
+			SubscriberStatus<T> st = status.get(index);
+			status.set(index, SubscriberStatus.create(Optional.of(value),
+					st.completed, false));
 			process(true);
 		}
 
 		private void handleCompleted(int index) {
 			SubscriberStatus<T> st = status.get(index);
 			status.set(index, SubscriberStatus.create(st.latest, true, st.used));
-			if (countNotCompleted() == 0) {
+			int notCompleted = countNotCompleted();
+			if (notCompleted == 0) {
 				for (int i = 1; i <= getIndexValues().size(); i++)
 					process(false);
 				child.onCompleted();
+			} else {
+				while (process(false))
+					;
+				if (countActive() == 0)
+					child.onCompleted();
 			}
 		}
 
-		private void process(boolean canRequestMore) {
+		private boolean process(boolean canRequestMore) {
 			// if there are enough values then select one for emission and
 			// emit it to the child subscriber
 			List<IndexValue<T>> indexValues = getIndexValues();
@@ -205,12 +214,14 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 						public void call() {
 							if (!status.get(selected.index).completed) {
 								nextRequestFrom.set(selected.index);
-								drainRequest();
+								performPendingRequest();
 							} else
 								process(true);
 						}
 					});
-			}
+				return true;
+			} else
+				return false;
 		}
 
 		private int countNotCompleted() {
