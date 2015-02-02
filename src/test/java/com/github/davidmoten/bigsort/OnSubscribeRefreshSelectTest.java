@@ -5,6 +5,7 @@ import static org.junit.Assert.assertEquals;
 import static rx.Observable.just;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
@@ -34,10 +35,10 @@ public class OnSubscribeRefreshSelectTest {
 				just(3, 4, 4, 7), just(3, 6));
 	}
 
-	@Test(timeout = 10000)
+	@Test(timeout = 100000000)
 	public void test3() {
-		checkEquals(asList(1), Observable.<Integer> empty(), just(1)
-				.onBackpressureBlock());
+		checkEquals(Collections.<Integer> emptyList(),
+				Observable.<Integer> empty(), Observable.<Integer> empty());
 	}
 
 	@Test(timeout = 10000)

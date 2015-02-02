@@ -74,7 +74,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 					subscribers.size());
 			for (int i = 0; i < subscribers.size(); i++) {
 				status.set(i, new SubscriberStatus<T>(Optional.<T> absent(),
-						false, false));
+						false, true));
 			}
 		}
 
@@ -116,26 +116,14 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 
 			if (expected.get() == Long.MAX_VALUE)
 				return;
-			if (n == Long.MAX_VALUE)
+			else if (n == Long.MAX_VALUE)
 				expected.set(n);
-			else {
+			else
 				addRequest(expected, n);
-			}
 
-			if (firstTime.compareAndSet(true, false)) {
-				boolean first = true;
-				for (SourceSubscriber<T> subscriber : subscribers) {
-					// don't request the first beccause as soon as we have that
-					// we have enough to emit. Wait for a backpressure request
-					// first.
-					if (first)
-						nextRequestFrom.set(0);
-					else
-						subscriber.requestOneMore();
-					first = false;
-				}
-
-			}
+			if (firstTime.compareAndSet(true, false))
+				for (SourceSubscriber<T> subscriber : subscribers)
+					subscriber.requestOneMore();
 
 			performPendingRequest();
 		}
