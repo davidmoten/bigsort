@@ -189,7 +189,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 					process(false);
 				child.onCompleted();
 			} else {
-				while (process(false))
+				while (process(true))
 					;
 				if (countActive() == 0)
 					child.onCompleted();
@@ -201,7 +201,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 			// emit it to the child subscriber
 			List<IndexValue<T>> indexValues = getIndexValues();
 			int active = countActive();
-			if (indexValues.size() >= active) {
+			if (indexValues.size() >= active && indexValues.size() > 0) {
 				final IndexValue<T> selected = select(indexValues);
 				SubscriberStatus<T> st = status.get(selected.index);
 				status.set(selected.index, SubscriberStatus.<T> create(
