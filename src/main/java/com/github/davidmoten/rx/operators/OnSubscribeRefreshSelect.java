@@ -39,6 +39,8 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 	}
 
 	private static class MyProducer<T> implements Producer {
+		private static final int NOT_PRESENT = -1;
+
 		private final NotificationLite<T> on = NotificationLite.instance();
 
 		private final List<SourceSubscriber<T>> subscribers;
@@ -48,7 +50,8 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 		private final AtomicBoolean firstTime = new AtomicBoolean(true);
 		private final AtomicReferenceArray<SubscriberStatus<T>> status;
 		private final Worker worker;
-		private final AtomicInteger nextRequestFrom = new AtomicInteger(-1);
+		private final AtomicInteger nextRequestFrom = new AtomicInteger(
+				NOT_PRESENT);
 
 		public MyProducer(Iterable<Observable<T>> sources,
 				Func1<List<T>, Integer> selector, Subscriber<? super T> child) {
@@ -131,12 +134,13 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 		private synchronized void performPendingRequest() {
 			System.out.println("draining requests, expected=" + expected
 					+ ",nextRequestFrom=" + nextRequestFrom);
-			if (expected.get() == 0 || nextRequestFrom.get() == -1)
+			if (expected.get() == 0 || nextRequestFrom.get() == NOT_PRESENT)
 				return;
 			if (expected.get() != Long.MAX_VALUE) {
 				expected.decrementAndGet();
 			}
-			subscribers.get(nextRequestFrom.getAndSet(-1)).requestOneMore();
+			subscribers.get(nextRequestFrom.getAndSet(NOT_PRESENT))
+					.requestOneMore();
 		}
 
 		private static class IndexValue<T> {
