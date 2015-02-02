@@ -183,17 +183,10 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 		private void handleCompleted(int index) {
 			SubscriberStatus<T> st = status.get(index);
 			status.set(index, SubscriberStatus.create(st.latest, true, st.used));
-			int notCompleted = countNotCompleted();
-			if (notCompleted == 0) {
-				for (int i = 1; i <= getIndexValues().size(); i++)
-					process(false);
+			while (process(true))
+				;
+			if (countActive() == 0)
 				child.onCompleted();
-			} else {
-				while (process(true))
-					;
-				if (countActive() == 0)
-					child.onCompleted();
-			}
 		}
 
 		private boolean process(boolean canRequestMore) {
