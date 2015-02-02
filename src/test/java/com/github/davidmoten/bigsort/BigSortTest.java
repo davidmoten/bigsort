@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.Comparator;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import junit.framework.TestCase;
@@ -27,6 +28,8 @@ public class BigSortTest extends TestCase {
 
 		return TestingHelper
 				.function(SORTER)
+				.waitForTerminalEvent(100, TimeUnit.MILLISECONDS)
+				.waitForMoreTerminalEvents(100, TimeUnit.MILLISECONDS)
 				// test empty
 				.name("testSortOfEmptyReturnsEmpty").fromEmpty().expectEmpty()
 				.name("testSortAFew").from(3, 2, 1).expect(1, 2, 3)
