@@ -157,9 +157,11 @@ public class BigSort {
 						List<Observable<T>> obs = new ArrayList<Observable<T>>();
 						for (Resource resource : resources)
 							obs.add(reader.call(resource));
-						return Observable
-								.create(new OnSubscribeRefreshSelect<T>(obs,
-										BigSort.<T> minimum(comparator)));
+						return Observable.create(
+								new OnSubscribeRefreshSelect<T>(obs, BigSort
+										.<T> minimum(comparator)))
+						// TODO remove this once honours backp
+								.onBackpressureBuffer();
 					}
 				});
 	}

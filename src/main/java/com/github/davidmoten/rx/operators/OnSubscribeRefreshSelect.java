@@ -81,23 +81,6 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 			}
 		}
 
-		private static class SubscriberStatus<T> {
-			final Optional<T> latest;
-			final boolean completed;
-			final boolean used;
-
-			SubscriberStatus(Optional<T> latest, boolean completed, boolean used) {
-				this.latest = latest;
-				this.completed = completed;
-				this.used = used;
-			}
-
-			static <T> SubscriberStatus<T> create(Optional<T> latest,
-					boolean completed, boolean used) {
-				return new SubscriberStatus<T>(latest, completed, used);
-			}
-		}
-
 		private static void addRequest(AtomicLong expected, long n) {
 			while (true) {
 				// lock free updater
@@ -208,15 +191,6 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 				return false;
 		}
 
-		private int countNotCompleted() {
-			int count = 0;
-			for (int i = 0; i < status.length(); i++) {
-				if (!status.get(i).completed)
-					count++;
-			}
-			return count;
-		}
-
 		private int countActive() {
 			int active = 0;
 			for (int i = 0; i < status.length(); i++) {
@@ -244,6 +218,23 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 			return indexValues.get(selector.call(a));
 		}
 
+	}
+
+	private static class SubscriberStatus<T> {
+		final Optional<T> latest;
+		final boolean completed;
+		final boolean used;
+
+		SubscriberStatus(Optional<T> latest, boolean completed, boolean used) {
+			this.latest = latest;
+			this.completed = completed;
+			this.used = used;
+		}
+
+		static <T> SubscriberStatus<T> create(Optional<T> latest,
+				boolean completed, boolean used) {
+			return new SubscriberStatus<T>(latest, completed, used);
+		}
 	}
 
 	private static class SourceSubscriber<T> extends Subscriber<T> {
