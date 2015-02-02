@@ -177,19 +177,19 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 			SubscriberStatus<T> st = status.get(index);
 			status.set(index, SubscriberStatus.create(Optional.of(value),
 					st.completed, false));
-			process(true);
+			process();
 		}
 
 		private void handleCompleted(int index) {
 			SubscriberStatus<T> st = status.get(index);
 			status.set(index, SubscriberStatus.create(st.latest, true, st.used));
-			while (process(true))
+			while (process())
 				;
 			if (countActive() == 0)
 				child.onCompleted();
 		}
 
-		private boolean process(boolean canRequestMore) {
+		private boolean process() {
 			// if there are enough values then select one for emission and
 			// emit it to the child subscriber
 			List<IndexValue<T>> indexValues = getIndexValues();
@@ -201,17 +201,16 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 						of(selected.value), st.completed, true));
 				System.out.println("-> " + selected.value);
 				child.onNext(selected.value);
-				if (canRequestMore)
-					worker.schedule(new Action0() {
-						@Override
-						public void call() {
-							if (!status.get(selected.index).completed) {
-								nextRequestFrom.set(selected.index);
-								performPendingRequest();
-							} else
-								process(true);
-						}
-					});
+				worker.schedule(new Action0() {
+					@Override
+					public void call() {
+						if (!status.get(selected.index).completed) {
+							nextRequestFrom.set(selected.index);
+							performPendingRequest();
+						} else
+							process();
+					}
+				});
 				return true;
 			} else
 				return false;
