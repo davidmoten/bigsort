@@ -126,17 +126,17 @@ public class BigSort {
 		return new Func1<List<Resource>, Observable<Resource>>() {
 
 			@Override
-			public Observable<Resource> call(final List<Resource> list) {
-				System.out.println("checking for merge:" + list);
-				if (list.size() < maxTempResources)
-					return Observable.from(list);
+			public Observable<Resource> call(final List<Resource> resources) {
+				System.out.println("checking for merge:" + resources);
+				if (resources.size() < maxTempResources)
+					return Observable.from(resources);
 				else {
 					Resource resource = resourceFactory.call();
-					Observable<T> items = merge(list, comparator, reader)
+					Observable<T> items = merge(resources, comparator, reader)
 							.doOnCompleted(new Action0() {
 								@Override
 								public void call() {
-									for (Resource r : list)
+									for (Resource r : resources)
 										resourceDisposer.call(r);
 								}
 							});
