@@ -140,6 +140,7 @@ public class BigSortTest extends TestCase {
 			@Override
 			public Observable<File> call(final Observable<Integer> lines,
 					final File file) {
+				System.out.println("creating writer");
 				return Observable.using(new Func0<FileOutputStream>() {
 
 					@Override
