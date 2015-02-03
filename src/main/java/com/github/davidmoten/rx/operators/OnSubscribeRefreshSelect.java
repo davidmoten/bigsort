@@ -17,7 +17,6 @@ import rx.Scheduler.Worker;
 import rx.Subscriber;
 import rx.functions.Action0;
 import rx.functions.Func1;
-import rx.internal.operators.NotificationLite;
 import rx.schedulers.Schedulers;
 
 import com.github.davidmoten.util.Optional;
@@ -40,8 +39,6 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 
 	private static class MyProducer<T> implements Producer {
 		private static final int NOT_PRESENT = -1;
-
-		private final NotificationLite<T> on = NotificationLite.instance();
 
 		private final List<SourceSubscriber<T>> subscribers;
 		private final Func1<List<T>, Integer> selector;

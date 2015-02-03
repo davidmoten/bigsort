@@ -40,6 +40,7 @@ public class BigSortTest extends TestCase {
 
 	public void testLarge() {
 		final int n = 5;
+		// source is n, n-1, .., 0
 		Observable<Integer> source = Observable.range(0, n).map(
 				new Func1<Integer, Integer>() {
 					@Override
@@ -48,7 +49,10 @@ public class BigSortTest extends TestCase {
 					}
 				});
 		final AtomicInteger count = new AtomicInteger();
-		SORTER.call(source).observeOn(Schedulers.immediate())
+		SORTER.call(source)
+		// observe here
+				.observeOn(Schedulers.immediate())
+				// check the values are ascending
 				.forEach(new Action1<Integer>() {
 					@Override
 					public void call(Integer i) {
@@ -56,6 +60,7 @@ public class BigSortTest extends TestCase {
 							throw new RuntimeException("not expected");
 					}
 				});
+		// check that everything arrived
 		assertEquals(n, count.get());
 	}
 
@@ -95,22 +100,37 @@ public class BigSortTest extends TestCase {
 
 			@Override
 			public Observable<Integer> call(final File file) {
-				return Strings
-						.split(Strings.from(file).lift(
-								OperatorUnsubscribeEagerly.<String> instance()),
-								"\n").filter(new Func1<String, Boolean>() {
+				Observable<String> strings =
+				// read the strings from a file
+				Strings.from(file)
+				// close the file eagerly
+						.lift(OperatorUnsubscribeEagerly.<String> instance());
 
-							@Override
-							public Boolean call(final String s) {
-								return s.length() > 0;
-							}
-						}).map(new Func1<String, Integer>() {
+				return
+				// split/join the strings by new line character
+				Strings.split(strings, "\n")
+				// non-blank lines only
+						.filter(nonEmptyLines())
+						// to an integer
+						.map(toInteger());
+			}
+		};
+	}
 
-							@Override
-							public Integer call(final String s) {
-								return Integer.parseInt(s);
-							}
-						});
+	private static Func1<String, Boolean> nonEmptyLines() {
+		return new Func1<String, Boolean>() {
+			@Override
+			public Boolean call(final String s) {
+				return s.length() > 0;
+			}
+		};
+	}
+
+	private static Func1<String, Integer> toInteger() {
+		return new Func1<String, Integer>() {
+			@Override
+			public Integer call(final String s) {
+				return Integer.parseInt(s);
 			}
 		};
 	}

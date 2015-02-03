@@ -25,58 +25,64 @@ public class OnSubscribeRefreshSelectTest {
 	};
 
 	@SuppressWarnings("unchecked")
-	@Test(timeout = 10000)
+	@Test(timeout = 1000)
 	public void test1() {
 		checkEquals(asList(1, 2, 3), just(1, 2), just(3).onBackpressureBuffer());
 	}
 
 	@SuppressWarnings("unchecked")
-	@Test(timeout = 10000)
+	@Test(timeout = 1000)
 	public void test2() {
 		checkEquals(asList(1, 2, 3, 3, 4, 4, 5, 6, 6, 7), just(1, 2, 5, 6),
 				just(3, 4, 4, 7), just(3, 6));
 	}
 
 	@SuppressWarnings("unchecked")
-	@Test(timeout = 100000000)
+	@Test(timeout = 1000)
 	public void test3() {
 		checkEquals(Collections.<Integer> emptyList(),
 				Observable.<Integer> empty(), Observable.<Integer> empty());
 	}
 
 	@SuppressWarnings("unchecked")
-	@Test(timeout = 10000)
+	@Test(timeout = 1000)
 	public void test4() {
 		checkEquals(asList(1, 2), Observable.<Integer> empty(), just(1, 2));
 	}
 
 	@SuppressWarnings("unchecked")
-	@Test(timeout = 100000000)
+	@Test(timeout = 1000)
 	public void test5() {
 		checkEquals(asList(1, 2), just(1).onBackpressureBuffer(), just(2)
 				.onBackpressureBuffer());
 	}
 
 	@SuppressWarnings("unchecked")
-	@Test(timeout = 100000000)
+	@Test(timeout = 1000)
 	public void test6() {
 		checkEquals(asList(1, 2, 3, 4), just(1, 2, 4), just(3)
 				.onBackpressureBuffer());
 	}
 
 	@SuppressWarnings("unchecked")
-	@Test(timeout = 100000000)
+	@Test(timeout = 1000)
 	public void test7() {
 		checkEquals(asList(1, 2, 4, 5, 7, 8, 9), just(1, 2, 4),
 				Observable.<Integer> empty(), just(5, 7), just(8, 9));
 	}
 
 	@SuppressWarnings("unchecked")
-	@Test(timeout = 100000000)
+	@Test(timeout = 1000)
 	public void test8() {
-		checkEquals(asList(1, 2, 4, 5, 7, 8, 9),
-				just(1).onBackpressureBuffer(), Observable.<Integer> empty(),
-				just(2, 4), just(5, 7), just(8, 9));
+		checkEquals(asList(1, 2, 4, 5, 7, 8, 9), just(1, 2, 4),
+				Observable.<Integer> empty(), just(5, 7), just(8, 9));
+	}
+
+	@SuppressWarnings("unchecked")
+	@Test(timeout = 100000000)
+	public void test9() {
+		checkEquals(asList(1, 2, 3, 4, 5), just(4, 5), just(2, 3), just(1)
+				.onBackpressureBuffer());
 	}
 
 	private static void checkEquals(List<Integer> expected,
