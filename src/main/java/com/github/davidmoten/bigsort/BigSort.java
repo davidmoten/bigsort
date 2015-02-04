@@ -37,7 +37,7 @@ public class BigSort {
 						sortInMemoryAndWriteToAResource(comparator, writer,
 								resourceFactory, scheduler))
 				// make each resource an Observable<Resource>
-				.nest()
+				.map(BigSort.<Resource> nested())
 				// reduce by merging groups of resources to a single resource
 				// once the resource count is maxTempResources
 				.reduce(Observable.<Resource> empty(),
@@ -52,6 +52,15 @@ public class BigSort {
 				.toList()
 				// merge remaining resources
 				.flatMap(mergeResourceList(comparator, reader));
+	}
+
+	private static <Resource> Func1<Resource, Observable<Resource>> nested() {
+		return new Func1<Resource, Observable<Resource>>() {
+			@Override
+			public Observable<Resource> call(Resource r) {
+				return Observable.just(r);
+			}
+		};
 	}
 
 	private static <T, Resource> Func1<List<T>, Observable<Resource>> sortInMemoryAndWriteToAResource(

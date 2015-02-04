@@ -12,7 +12,11 @@ import java.util.List;
 import org.junit.Test;
 
 import rx.Observable;
+import rx.Observable.Transformer;
+import rx.functions.Func1;
+import rx.functions.Func2;
 
+import com.github.davidmoten.rx.Functions;
 import com.github.davidmoten.rx.operators.OnSubscribeRefreshSelect;
 
 public class OnSubscribeRefreshSelectTest {
@@ -95,4 +99,43 @@ public class OnSubscribeRefreshSelectTest {
 
 	}
 
+	@Test
+	public void testRecursion() {
+		final Func1<List<Integer>, Integer> total = new Func1<List<Integer>, Integer>() {
+
+			@Override
+			public Integer call(List<Integer> list) {
+				int count = 0;
+				for (int i : list)
+					count += i;
+				return count;
+			}
+		};
+		Transformer<Integer, Integer> f = new Transformer<Integer, Integer>() {
+
+			@Override
+			public Observable<Integer> call(Observable<Integer> x) {
+				return x.buffer(2).map(total);
+			}
+		};
+
+		Observable<Integer> ones = Observable.just(1).repeat().take(100);
+		System.out
+				.println(ones.compose(f).compose(f).compose(f).compose(f)
+						.compose(f).compose(f).compose(f).count().toBlocking()
+						.single());
+
+		List<Integer> list = ones
+				.nest()
+				.reduce(new Func2<Observable<Integer>, Observable<Integer>, Observable<Integer>>() {
+
+					@Override
+					public Observable<Integer> call(Observable<Integer> a,
+							Observable<Integer> b) {
+						return a.toList().map(total).concatWith(b);
+					}
+				}).flatMap(Functions.<Observable<Integer>> identity()).toList()
+				.toBlocking().single();
+		System.out.println(list);
+	}
 }
