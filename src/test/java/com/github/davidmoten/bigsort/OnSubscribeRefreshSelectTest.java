@@ -13,10 +13,10 @@ import org.junit.Test;
 
 import rx.Observable;
 import rx.Observable.Transformer;
+import rx.functions.Action1;
 import rx.functions.Func1;
 import rx.functions.Func2;
 
-import com.github.davidmoten.rx.Functions;
 import com.github.davidmoten.rx.operators.OnSubscribeRefreshSelect;
 
 public class OnSubscribeRefreshSelectTest {
@@ -125,17 +125,27 @@ public class OnSubscribeRefreshSelectTest {
 						.compose(f).compose(f).compose(f).count().toBlocking()
 						.single());
 
-		List<Integer> list = ones
-				.nest()
+		int sum = ones
+				.map(Util.<Integer> nested())
 				.reduce(new Func2<Observable<Integer>, Observable<Integer>, Observable<Integer>>() {
 
 					@Override
 					public Observable<Integer> call(Observable<Integer> a,
 							Observable<Integer> b) {
-						return a.toList().map(total).concatWith(b);
+						return a.concatWith(b).toList().map(total);
 					}
-				}).flatMap(Functions.<Observable<Integer>> identity()).toList()
-				.toBlocking().single();
-		System.out.println(list);
+				})
+				.flatMap(new Func1<Observable<Integer>, Observable<Integer>>() {
+					@Override
+					public Observable<Integer> call(Observable<Integer> o) {
+						return o.doOnNext(new Action1<Integer>() {
+							@Override
+							public void call(Integer n) {
+								Thread.dumpStack();
+							}
+						});
+					}
+				}).single().toBlocking().single();
+		assertEquals(100, sum);
 	}
 }

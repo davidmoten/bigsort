@@ -37,11 +37,11 @@ public class BigSort {
 						sortInMemoryAndWriteToAResource(comparator, writer,
 								resourceFactory, scheduler))
 				// make each resource an Observable<Resource>
-				.map(BigSort.<Resource> nested())
+				.map(Util.<Resource> nested())
 				// reduce by merging groups of resources to a single resource
 				// once the resource count is maxTempResources
 				.reduce(Observable.<Resource> empty(),
-						mergeResources(comparator, writer, reader,
+						mergeResourcesAndWrite(comparator, writer, reader,
 								resourceFactory, resourceDisposer,
 								maxTempResources))
 				// flatten to a sequence of Resource
@@ -50,17 +50,9 @@ public class BigSort {
 								.<Observable<Resource>> identity())
 				// accumulate to a list
 				.toList()
-				// merge remaining resources
-				.flatMap(mergeResourceList(comparator, reader));
-	}
-
-	private static <Resource> Func1<Resource, Observable<Resource>> nested() {
-		return new Func1<Resource, Observable<Resource>>() {
-			@Override
-			public Observable<Resource> call(Resource r) {
-				return Observable.just(r);
-			}
-		};
+				// read and merge remaining resources (must be less than
+				// maxTempResources)
+				.flatMap(mergeResources(comparator, reader));
 	}
 
 	private static <T, Resource> Func1<List<T>, Observable<Resource>> sortInMemoryAndWriteToAResource(
@@ -104,7 +96,7 @@ public class BigSort {
 		};
 	}
 
-	private static <T, Resource> Func2<Observable<Resource>, Observable<Resource>, Observable<Resource>> mergeResources(
+	private static <T, Resource> Func2<Observable<Resource>, Observable<Resource>, Observable<Resource>> mergeResourcesAndWrite(
 			final Comparator<T> comparator,
 			final Func2<Observable<T>, Resource, Observable<Resource>> writer,
 			final Func1<Resource, Observable<T>> reader,
@@ -198,7 +190,7 @@ public class BigSort {
 		};
 	}
 
-	private static <T, Resource> Func1<List<Resource>, Observable<T>> mergeResourceList(
+	private static <T, Resource> Func1<List<Resource>, Observable<T>> mergeResources(
 			final Comparator<T> comparator,
 			final Func1<Resource, Observable<T>> reader) {
 		return new Func1<List<Resource>, Observable<T>>() {
