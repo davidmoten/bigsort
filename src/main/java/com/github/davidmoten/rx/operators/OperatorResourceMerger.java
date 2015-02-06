@@ -1,4 +1,4 @@
-package com.github.davidmoten.bigsort;
+package com.github.davidmoten.rx.operators;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -14,7 +14,7 @@ import rx.functions.Func0;
 import rx.functions.Func1;
 import rx.functions.Func2;
 
-import com.github.davidmoten.rx.operators.OnSubscribeRefreshSelect;
+import com.github.davidmoten.bigsort.BigSort;
 
 public class OperatorResourceMerger<Resource, T> implements
 		Operator<Resource, Resource> {
@@ -70,16 +70,16 @@ public class OperatorResourceMerger<Resource, T> implements
 			}
 
 			private void reduce() {
-				Resource result = OperatorResourceMerger.this.reduce(resources);
-				resources.clear();
-				resources.add(result);
+				OperatorResourceMerger.this.reduce(resources, child);
+
 			}
 		};
 	}
 
-	private Resource reduce(final List<Resource> resources) {
+	private void reduce(final List<Resource> resources,
+			final Subscriber<? super Resource> child) {
 		if (resources.size() == 1)
-			return resources.get(0);
+			return;
 		else {
 			Resource resource = resourceFactory.call();
 			Observable<T> items = merge(resources, comparator, reader)
@@ -90,7 +90,24 @@ public class OperatorResourceMerger<Resource, T> implements
 								resourceDisposer.call(r);
 						}
 					});
-			return writer.call(items, resource).toBlocking().single();
+			writer.call(items, resource).subscribe(new Subscriber<Resource>() {
+
+				@Override
+				public void onCompleted() {
+					// only emits one so after onNext handled don't care
+				}
+
+				@Override
+				public void onError(Throwable e) {
+					child.onError(e);
+				}
+
+				@Override
+				public void onNext(Resource r) {
+					resources.clear();
+					resources.add(r);
+				}
+			});
 		}
 	}
 
