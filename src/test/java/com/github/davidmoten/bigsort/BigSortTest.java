@@ -147,7 +147,7 @@ public class BigSortTest extends TestCase {
 			@Override
 			public Observable<File> call(final Observable<Integer> lines,
 					final File file) {
-				log.info("creating writer");
+				log.info("creating writer for " + file);
 				return Observable.using(new Func0<FileOutputStream>() {
 
 					@Override
@@ -167,7 +167,7 @@ public class BigSortTest extends TestCase {
 
 							@Override
 							public void call(Integer s) {
-								log.info("writing " + s);
+								log.info("writing " + s + " to " + file);
 								try {
 									fos.write((s + "\n").getBytes(UTF8));
 								} catch (IOException e) {
@@ -187,7 +187,7 @@ public class BigSortTest extends TestCase {
 					@Override
 					public void call(FileOutputStream fos) {
 						try {
-							log.info("closing file");
+							log.info("closing file " + file);
 							fos.close();
 						} catch (IOException e) {
 							e.printStackTrace();
