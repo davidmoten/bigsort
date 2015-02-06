@@ -9,6 +9,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import rx.Notification;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
@@ -22,6 +25,9 @@ import rx.schedulers.Schedulers;
 import com.github.davidmoten.util.Optional;
 
 public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
+
+	private static final Logger log = LoggerFactory
+			.getLogger(OnSubscribeRefreshSelect.class);
 
 	private final Iterable<Observable<T>> sources;
 	private final Func1<List<T>, Integer> selector;
@@ -93,7 +99,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 
 		@Override
 		public void request(long n) {
-			System.out.println(n + " requested");
+			log.info(n + " requested");
 			if (n <= 0)
 				return;
 
@@ -112,7 +118,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 		}
 
 		private synchronized void performPendingRequest() {
-			System.out.println("draining requests, expected=" + expected
+			log.info("draining requests, expected=" + expected
 					+ ",nextRequestFrom=" + nextRequestFrom);
 			if (expected.get() == 0 || nextRequestFrom.get() == NOT_PRESENT)
 				return;
@@ -134,7 +140,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 		}
 
 		public synchronized void event(int index, Notification<T> event) {
-			System.out.println(index + ":" + event);
+			log.info(index + ":" + event);
 
 			if (event.isOnCompleted())
 				handleCompleted(index);
@@ -171,7 +177,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 				SubscriberStatus<T> st = status.get(selected.index);
 				status.set(selected.index, SubscriberStatus.<T> create(
 						of(selected.value), st.completed, true));
-				System.out.println("-> " + selected.value);
+				log.info("-> " + selected.value);
 				child.onNext(selected.value);
 				worker.schedule(new Action0() {
 					@Override
@@ -245,7 +251,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 		}
 
 		void requestOneMore() {
-			System.out.println("requesting one more from " + index);
+			log.info("requesting one more from " + index);
 			request(1);
 		}
 

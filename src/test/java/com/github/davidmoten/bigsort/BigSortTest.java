@@ -11,6 +11,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import rx.Observable;
 import rx.functions.Action1;
 import rx.functions.Func0;
@@ -23,6 +27,9 @@ import com.github.davidmoten.rx.operators.OperatorUnsubscribeEagerly;
 import com.github.davidmoten.rx.testing.TestingHelper;
 
 public class BigSortTest extends TestCase {
+
+	private static final Logger log = LoggerFactory
+			.getLogger(BigSortTest.class);
 
 	public static TestSuite suite() {
 
@@ -140,12 +147,12 @@ public class BigSortTest extends TestCase {
 			@Override
 			public Observable<File> call(final Observable<Integer> lines,
 					final File file) {
-				System.out.println("creating writer");
+				log.info("creating writer");
 				return Observable.using(new Func0<FileOutputStream>() {
 
 					@Override
 					public FileOutputStream call() {
-						System.out.println("opening " + file);
+						log.info("opening " + file);
 						try {
 							return new FileOutputStream(file);
 						} catch (FileNotFoundException e) {
@@ -160,7 +167,7 @@ public class BigSortTest extends TestCase {
 
 							@Override
 							public void call(Integer s) {
-								System.out.println("writing " + s);
+								log.info("writing " + s);
 								try {
 									fos.write((s + "\n").getBytes(UTF8));
 								} catch (IOException e) {
@@ -180,7 +187,7 @@ public class BigSortTest extends TestCase {
 					@Override
 					public void call(FileOutputStream fos) {
 						try {
-							System.out.println("closing file");
+							log.info("closing file");
 							fos.close();
 						} catch (IOException e) {
 							e.printStackTrace();
