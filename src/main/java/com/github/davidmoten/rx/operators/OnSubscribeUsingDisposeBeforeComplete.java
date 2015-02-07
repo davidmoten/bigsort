@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package rx.internal.operators;
+package com.github.davidmoten.rx.operators;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import rx.Observable;
 import rx.Observable.OnSubscribe;
@@ -27,13 +29,14 @@ import rx.subscriptions.Subscriptions;
 /**
  * Constructs an observable sequence that depends on a resource object.
  */
-public final class OnSubscribeUsing<T, Resource> implements OnSubscribe<T> {
+public final class OnSubscribeUsingDisposeBeforeComplete<T, Resource>
+		implements OnSubscribe<T> {
 
 	private final Func0<Resource> resourceFactory;
 	private final Func1<? super Resource, ? extends Observable<? extends T>> observableFactory;
 	private final Action1<? super Resource> dispose;
 
-	public OnSubscribeUsing(
+	public OnSubscribeUsingDisposeBeforeComplete(
 			Func0<Resource> resourceFactory,
 			Func1<? super Resource, ? extends Observable<? extends T>> observableFactory,
 			Action1<? super Resource> dispose) {
@@ -46,17 +49,21 @@ public final class OnSubscribeUsing<T, Resource> implements OnSubscribe<T> {
 	public void call(Subscriber<? super T> subscriber) {
 		try {
 			final Resource resource = resourceFactory.call();
-			subscriber.add(Subscriptions.create(new Action0() {
+			Action0 disposeAction = new Action0() {
+
+				private final AtomicBoolean disposed = new AtomicBoolean(false);
 
 				@Override
 				public void call() {
-					dispose.call(resource);
+					if (disposed.compareAndSet(false, true))
+						dispose.call(resource);
 				}
 
-			}));
+			};
+			subscriber.add(Subscriptions.create(disposeAction));
 			Observable<? extends T> observable = observableFactory
 					.call(resource);
-			observable.unsafeSubscribe(subscriber);
+			observable.doOnCompleted(disposeAction).unsafeSubscribe(subscriber);
 		} catch (Throwable e) {
 			// eagerly call unsubscribe since this operator is specifically
 			// about resource management

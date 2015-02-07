@@ -23,6 +23,7 @@ import rx.functions.Func2;
 import rx.schedulers.Schedulers;
 
 import com.github.davidmoten.rx.Strings;
+import com.github.davidmoten.rx.operators.OnSubscribeUsingDisposeBeforeComplete;
 import com.github.davidmoten.rx.operators.OperatorUnsubscribeEagerly;
 import com.github.davidmoten.rx.testing.TestingHelper;
 
@@ -148,7 +149,7 @@ public class BigSortTest extends TestCase {
 			public Observable<File> call(final Observable<Integer> lines,
 					final File file) {
 				log.info("creating writer for " + file);
-				return Observable.using(new Func0<FileOutputStream>() {
+				Func0<FileOutputStream> resourceFactory = new Func0<FileOutputStream>() {
 
 					@Override
 					public FileOutputStream call() {
@@ -159,7 +160,8 @@ public class BigSortTest extends TestCase {
 							throw new RuntimeException(e);
 						}
 					}
-				}, new Func1<FileOutputStream, Observable<File>>() {
+				};
+				Func1<FileOutputStream, Observable<File>> observableFactory = new Func1<FileOutputStream, Observable<File>>() {
 
 					@Override
 					public Observable<File> call(final FileOutputStream fos) {
@@ -182,7 +184,8 @@ public class BigSortTest extends TestCase {
 							}
 						});
 					}
-				}, new Action1<FileOutputStream>() {
+				};
+				Action1<FileOutputStream> disposeAction = new Action1<FileOutputStream>() {
 
 					@Override
 					public void call(FileOutputStream fos) {
@@ -193,7 +196,11 @@ public class BigSortTest extends TestCase {
 							e.printStackTrace();
 						}
 					}
-				}).lift(OperatorUnsubscribeEagerly.<File> instance());
+				};
+				return Observable
+						.create(new OnSubscribeUsingDisposeBeforeComplete<File, FileOutputStream>(
+								resourceFactory, observableFactory,
+								disposeAction));
 			}
 		};
 	}
