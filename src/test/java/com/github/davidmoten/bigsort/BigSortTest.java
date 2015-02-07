@@ -119,8 +119,20 @@ public class BigSortTest extends TestCase {
 				Strings.split(strings, "\n")
 				// non-blank lines only
 						.filter(nonEmptyLines())
+						// log
+						.doOnNext(log())
 						// to an integer
 						.map(toInteger());
+			}
+
+		};
+	}
+
+	private static <T> Action1<T> log() {
+		return new Action1<T>() {
+			@Override
+			public void call(T t) {
+				log.info("value=" + t);
 			}
 		};
 	}
