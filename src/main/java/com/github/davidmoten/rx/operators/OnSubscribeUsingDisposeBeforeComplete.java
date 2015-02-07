@@ -45,6 +45,15 @@ public final class OnSubscribeUsingDisposeBeforeComplete<T, Resource>
 		this.dispose = dispose;
 	}
 
+	public static <T, Resource> Observable<T> create(
+			Func0<Resource> resourceFactory,
+			Func1<? super Resource, ? extends Observable<? extends T>> observableFactory,
+			Action1<? super Resource> dispose) {
+		return Observable
+				.create(new OnSubscribeUsingDisposeBeforeComplete<T, Resource>(
+						resourceFactory, observableFactory, dispose));
+	}
+
 	@Override
 	public void call(Subscriber<? super T> subscriber) {
 		try {

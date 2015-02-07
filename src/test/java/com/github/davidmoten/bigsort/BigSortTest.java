@@ -153,7 +153,7 @@ public class BigSortTest extends TestCase {
 
 					@Override
 					public FileOutputStream call() {
-						log.info("opening " + file);
+						log.info("opening writing " + file);
 						try {
 							return new FileOutputStream(file);
 						} catch (FileNotFoundException e) {
@@ -190,7 +190,7 @@ public class BigSortTest extends TestCase {
 					@Override
 					public void call(FileOutputStream fos) {
 						try {
-							log.info("closing file " + file);
+							log.info("closing writing file " + file);
 							fos.close();
 						} catch (IOException e) {
 							e.printStackTrace();

@@ -9,11 +9,15 @@ import java.io.Reader;
 import java.nio.charset.Charset;
 import java.util.regex.Pattern;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import rx.Observable;
 import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
 
+import com.github.davidmoten.rx.operators.OnSubscribeUsingDisposeBeforeComplete;
 import com.github.davidmoten.rx.operators.ReaderOnSubscribe;
 import com.github.davidmoten.rx.operators.StringSplitOperator;
 
@@ -24,6 +28,8 @@ import com.github.davidmoten.rx.operators.StringSplitOperator;
  * </ul>
  */
 public final class Strings {
+
+	private static final Logger log = LoggerFactory.getLogger(Strings.class);
 
 	public static final Charset DEFAULT_CHARSET = Charset.forName("UTF-8");
 
@@ -64,6 +70,7 @@ public final class Strings {
 			@Override
 			public Reader call() {
 				try {
+					log.info("opening reader for " + file);
 					return new InputStreamReader(new FileInputStream(file),
 							charset);
 				} catch (FileNotFoundException e) {
@@ -81,14 +88,15 @@ public final class Strings {
 			@Override
 			public void call(Reader is) {
 				try {
+					log.info("closing reader for " + file);
 					is.close();
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
 			}
 		};
-		return Observable.using(resourceFactory, observableFactory,
-				disposeAction);
+		return OnSubscribeUsingDisposeBeforeComplete.create(resourceFactory,
+				observableFactory, disposeAction);
 	}
 
 }
