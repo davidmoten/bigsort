@@ -99,7 +99,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 
 		@Override
 		public void request(long n) {
-			log.info(n + " requested");
+			// log.info(n + " requested");
 			if (n <= 0)
 				return;
 
@@ -118,8 +118,8 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 		}
 
 		private synchronized void performPendingRequest() {
-			log.info("draining requests, expected=" + expected
-					+ ",nextRequestFrom=" + nextRequestFrom);
+			// log.info("draining requests, expected=" + expected
+			// + ",nextRequestFrom=" + nextRequestFrom);
 			if (expected.get() == 0 || nextRequestFrom.get() == NOT_PRESENT)
 				return;
 			if (expected.get() != Long.MAX_VALUE) {
@@ -140,7 +140,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 		}
 
 		public synchronized void event(int index, Notification<T> event) {
-			log.info(index + ":" + event);
+			// log.info(index + ":" + event);
 
 			if (event.isOnCompleted())
 				handleCompleted(index);
@@ -177,7 +177,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 				SubscriberStatus<T> st = status.get(selected.index);
 				status.set(selected.index, SubscriberStatus.<T> create(
 						of(selected.value), st.completed, true));
-				log.info("-> " + selected.value);
+				// log.info("-> " + selected.value);
 				child.onNext(selected.value);
 				worker.schedule(new Action0() {
 					@Override
@@ -251,7 +251,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 		}
 
 		void requestOneMore() {
-			log.info("requesting one more from " + index);
+			// log.info("requesting one more from " + index);
 			request(1);
 		}
 

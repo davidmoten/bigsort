@@ -46,11 +46,11 @@ public class BigSortTest extends TestCase {
 	}
 
 	public void testLarge() {
-		final int n = 100;
+		final int n = 1000;
 		// source is n, n-1, .., 0
 		Observable<Integer> source = createDescendingRange(n);
 		assertEquals(Observable.range(1, n).toList().toBlocking().single(),
-				sorter(2, 2).call(source).toList().toBlocking().single());
+				sorter(50, 5).call(source).toList().toBlocking().single());
 	}
 
 	private Observable<Integer> createDescendingRange(final int n) {
@@ -112,7 +112,7 @@ public class BigSortTest extends TestCase {
 				// non-blank lines only
 						.filter(nonEmptyLines())
 						// log
-						.doOnNext(log())
+						// .doOnNext(log())
 						// to an integer
 						.map(toInteger());
 			}
@@ -152,12 +152,12 @@ public class BigSortTest extends TestCase {
 			@Override
 			public Observable<File> call(final Observable<Integer> lines,
 					final File file) {
-				log.info("creating writer for " + file);
+				// log.info("creating writer for " + file);
 				Func0<FileOutputStream> resourceFactory = new Func0<FileOutputStream>() {
 
 					@Override
 					public FileOutputStream call() {
-						log.info("opening writing " + file);
+						// log.info("opening writing " + file);
 						try {
 							return new FileOutputStream(file);
 						} catch (FileNotFoundException e) {
@@ -173,7 +173,7 @@ public class BigSortTest extends TestCase {
 
 							@Override
 							public void call(Integer s) {
-								log.info("writing " + s + " to " + file);
+								// log.info("writing " + s + " to " + file);
 								try {
 									fos.write((s + "\n").getBytes(UTF8));
 								} catch (IOException e) {
@@ -194,7 +194,7 @@ public class BigSortTest extends TestCase {
 					@Override
 					public void call(FileOutputStream fos) {
 						try {
-							log.info("closing writing file " + file);
+							// log.info("closing writing file " + file);
 							fos.close();
 						} catch (IOException e) {
 							e.printStackTrace();
