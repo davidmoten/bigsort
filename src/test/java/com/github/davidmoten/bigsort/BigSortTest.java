@@ -46,12 +46,11 @@ public class BigSortTest extends TestCase {
 	}
 
 	public void testLarge() {
-		final int n = 3;
+		final int n = 100;
 		// source is n, n-1, .., 0
 		Observable<Integer> source = createDescendingRange(n);
 		assertEquals(Observable.range(1, n).toList().toBlocking().single(),
-				sorter(n - 1, n - 1).call(source).toList().toBlocking()
-						.single());
+				sorter(2, 2).call(source).toList().toBlocking().single());
 	}
 
 	private Observable<Integer> createDescendingRange(final int n) {
@@ -87,6 +86,7 @@ public class BigSortTest extends TestCase {
 	}
 
 	private static Comparator<Integer> createComparator() {
+
 		return new Comparator<Integer>() {
 			@Override
 			public int compare(Integer o1, Integer o2) {
