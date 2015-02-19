@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.Comparator;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
@@ -23,7 +22,7 @@ import rx.functions.Func2;
 import rx.schedulers.Schedulers;
 
 import com.github.davidmoten.rx.Strings;
-import com.github.davidmoten.rx.operators.OnSubscribeUsingDisposeBeforeComplete;
+import com.github.davidmoten.rx.operators.OnSubscribeUsing2;
 import com.github.davidmoten.rx.operators.OperatorUnsubscribeEagerly;
 import com.github.davidmoten.rx.testing.TestingHelper;
 
@@ -33,9 +32,9 @@ public class BigSortTest extends TestCase {
 			.getLogger(BigSortTest.class);
 
 	public static TestSuite suite() {
-
+		TestingHelper.includeBackpressureRequestOverflowTest = false;
 		return TestingHelper
-				.function(SORTER)
+				.function(sorter(2, 2))
 				.waitForTerminalEvent(100, TimeUnit.MILLISECONDS)
 				.waitForMoreTerminalEvents(100, TimeUnit.MILLISECONDS)
 				// test empty
@@ -47,23 +46,12 @@ public class BigSortTest extends TestCase {
 	}
 
 	public void testLarge() {
-		final int n = 5;
+		final int n = 3;
 		// source is n, n-1, .., 0
 		Observable<Integer> source = createDescendingRange(n);
-		final AtomicInteger count = new AtomicInteger();
-		SORTER.call(source)
-		// observe here
-				.observeOn(Schedulers.immediate())
-				// check the values are ascending
-				.forEach(new Action1<Integer>() {
-					@Override
-					public void call(Integer i) {
-						if (i != count.incrementAndGet())
-							throw new RuntimeException("not expected");
-					}
-				});
-		// check that everything arrived
-		assertEquals(n, count.get());
+		assertEquals(Observable.range(1, n).toList().toBlocking().single(),
+				sorter(n - 1, n - 1).call(source).toList().toBlocking()
+						.single());
 	}
 
 	private Observable<Integer> createDescendingRange(final int n) {
@@ -77,25 +65,26 @@ public class BigSortTest extends TestCase {
 
 	private static final Charset UTF8 = Charset.forName("UTF-8");
 
-	private static Func1<Observable<Integer>, Observable<Integer>> SORTER = new Func1<Observable<Integer>, Observable<Integer>>() {
+	private static Func1<Observable<Integer>, Observable<Integer>> sorter(
+			final int maxToSortInMemoryPerThread, final int maxTempResources) {
+		return new Func1<Observable<Integer>, Observable<Integer>>() {
 
-		@Override
-		public Observable<Integer> call(Observable<Integer> source) {
-			Comparator<Integer> comparator = createComparator();
-			Func2<Observable<Integer>, File, Observable<File>> writer = createWriter();
-			Func1<File, Observable<Integer>> reader = createReader();
-			Func0<File> resourceFactory = createResourceFactory();
-			Action1<File> resourceDisposer = createResourceDisposer();
-			int maxToSortInMemoryPerThread = 2;
-			int maxTempResources = 2;
+			@Override
+			public Observable<Integer> call(Observable<Integer> source) {
+				Comparator<Integer> comparator = createComparator();
+				Func2<Observable<Integer>, File, Observable<File>> writer = createWriter();
+				Func1<File, Observable<Integer>> reader = createReader();
+				Func0<File> resourceFactory = createResourceFactory();
+				Action1<File> resourceDisposer = createResourceDisposer();
 
-			return BigSort.sort(source, comparator, writer, reader,
-					resourceFactory, resourceDisposer,
-					maxToSortInMemoryPerThread, maxTempResources,
-					Schedulers.immediate());
-		}
+				return BigSort.sort(source, comparator, writer, reader,
+						resourceFactory, resourceDisposer,
+						maxToSortInMemoryPerThread, maxTempResources,
+						Schedulers.immediate());
+			}
 
-	};
+		};
+	}
 
 	private static Comparator<Integer> createComparator() {
 		return new Comparator<Integer>() {
@@ -213,9 +202,9 @@ public class BigSortTest extends TestCase {
 					}
 				};
 				return Observable
-						.create(new OnSubscribeUsingDisposeBeforeComplete<File, FileOutputStream>(
+						.create(new OnSubscribeUsing2<File, FileOutputStream>(
 								resourceFactory, observableFactory,
-								disposeAction));
+								disposeAction, true));
 			}
 		};
 	}

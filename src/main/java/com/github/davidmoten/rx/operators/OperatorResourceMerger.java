@@ -1,8 +1,6 @@
 package com.github.davidmoten.rx.operators;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
@@ -15,7 +13,8 @@ import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
 import rx.functions.Func2;
-import rx.functions.FuncN;
+
+import com.github.davidmoten.bigsort.BigSort;
 
 public class OperatorResourceMerger<Resource, T> implements
 		Operator<Resource, Resource> {
@@ -121,15 +120,21 @@ public class OperatorResourceMerger<Resource, T> implements
 					public Observable<T> call(List<Resource> resources) {
 						List<Observable<T>> obs = new ArrayList<Observable<T>>();
 						for (Resource resource : resources)
-							obs.add(reader.call(resource));
-						return Observable.combineLatest(obs, new FuncN<T>() {
+							obs.add(reader.call(resource)
+									.onBackpressureBuffer());
+						return Observable
+								.create(new OnSubscribeRefreshSelect<T>(obs,
+										BigSort.<T> minimum(comparator)));
 
-							@Override
-							public T call(Object... items) {
-								return Collections.min(
-										Arrays.asList((T[]) items), comparator);
-							}
-						}).onBackpressureBuffer();
+						// Observable.combineLatest(obs, new FuncN<T>() {
+						//
+						// @Override
+						// public T call(Object... items) {
+						// return Collections.min(
+						// Arrays.asList((T[]) items), comparator);
+						// }
+						// })
+						// TODO remove this once honours backp
 					}
 				});
 	}
