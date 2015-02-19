@@ -49,13 +49,7 @@ public class BigSortTest extends TestCase {
 	public void testLarge() {
 		final int n = 5;
 		// source is n, n-1, .., 0
-		Observable<Integer> source = Observable.range(0, n).map(
-				new Func1<Integer, Integer>() {
-					@Override
-					public Integer call(Integer i) {
-						return n - i;
-					}
-				});
+		Observable<Integer> source = createDescendingRange(n);
 		final AtomicInteger count = new AtomicInteger();
 		SORTER.call(source)
 		// observe here
@@ -70,6 +64,15 @@ public class BigSortTest extends TestCase {
 				});
 		// check that everything arrived
 		assertEquals(n, count.get());
+	}
+
+	private Observable<Integer> createDescendingRange(final int n) {
+		return Observable.range(0, n).map(new Func1<Integer, Integer>() {
+			@Override
+			public Integer call(Integer i) {
+				return n - i;
+			}
+		});
 	}
 
 	private static final Charset UTF8 = Charset.forName("UTF-8");
