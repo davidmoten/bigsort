@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.Charset;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
@@ -32,6 +33,8 @@ public final class Strings {
 	private static final Logger log = LoggerFactory.getLogger(Strings.class);
 
 	public static final Charset DEFAULT_CHARSET = Charset.forName("UTF-8");
+
+	private static final AtomicInteger count = new AtomicInteger();
 
 	/**
 	 * Returns null if input is null otherwise returns input.toString().trim().
@@ -88,7 +91,9 @@ public final class Strings {
 			@Override
 			public void call(Reader is) {
 				try {
-					log.info("closing reader for " + file);
+					log.info("closing reader for " + file + " -> "
+							+ count.incrementAndGet());
+
 					is.close();
 				} catch (IOException e) {
 					e.printStackTrace();

@@ -46,11 +46,11 @@ public class BigSortTest extends TestCase {
 	}
 
 	public void testLarge() {
-		final int n = 1000;
+		final int n = 128;// passes on 127!!
 		// source is n, n-1, .., 0
 		Observable<Integer> source = createDescendingRange(n);
 		assertEquals(Observable.range(1, n).toList().toBlocking().single(),
-				sorter(50, 5).call(source).toList().toBlocking().single());
+				sorter(1, 2).call(source).toList().toBlocking().single());
 	}
 
 	private Observable<Integer> createDescendingRange(final int n) {
@@ -157,7 +157,7 @@ public class BigSortTest extends TestCase {
 
 					@Override
 					public FileOutputStream call() {
-						// log.info("opening writing " + file);
+						log.info("opening writing " + file);
 						try {
 							return new FileOutputStream(file);
 						} catch (FileNotFoundException e) {
@@ -194,7 +194,7 @@ public class BigSortTest extends TestCase {
 					@Override
 					public void call(FileOutputStream fos) {
 						try {
-							// log.info("closing writing file " + file);
+							log.info("closing writing file " + file);
 							fos.close();
 						} catch (IOException e) {
 							e.printStackTrace();
