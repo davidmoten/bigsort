@@ -66,7 +66,9 @@ public class OperatorResourceMerger<Resource, T> implements Operator<Resource, R
             @Override
             public void onNext(Resource r) {
                 resources.add(r);
+                log.info("added resource " + r);
                 if (resources.size() == maxTempResources) {
+                    log.info("reducing " + resources.size() + " to 1");
                     reduce();
                 }
             }
@@ -113,17 +115,20 @@ public class OperatorResourceMerger<Resource, T> implements Operator<Resource, R
 
     private static <T, Resource> Observable<T> merge(List<Resource> resources,
             final Comparator<T> comparator, final Func1<Resource, Observable<T>> reader) {
-        return Observable.just(resources).flatMap(new Func1<List<Resource>, Observable<T>>() {
-            @Override
-            public Observable<T> call(List<Resource> resources) {
-                List<Observable<T>> obs = new ArrayList<Observable<T>>();
-                for (Resource resource : resources)
-                    obs.add(reader.call(resource).onBackpressureBuffer());
-                return Observable.create(new OnSubscribeRefreshSelect<T>(obs, BigSort
-                        .<T> minimum(comparator)));
-
-                // TODO remove this once honours backp
-            }
-        });
+        return Observable.just(resources)
+        // merge all resources into a single observable stream
+                .flatMap(new Func1<List<Resource>, Observable<T>>() {
+                    @Override
+                    public Observable<T> call(List<Resource> resources) {
+                        List<Observable<T>> obs = new ArrayList<Observable<T>>();
+                        for (Resource resource : resources)
+                            obs.add(reader.call(resource).onBackpressureBuffer());
+                        return Observable.create(
+                                new OnSubscribeRefreshSelect<T>(obs, BigSort
+                                        .<T> minimum(comparator)))
+                        // TODO remove this once honours backp
+                                .onBackpressureBuffer();
+                    }
+                });
     }
 }
