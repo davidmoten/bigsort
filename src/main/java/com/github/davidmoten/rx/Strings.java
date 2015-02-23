@@ -14,7 +14,6 @@ import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
 
-import com.github.davidmoten.rx.operators.OnSubscribeUsing2;
 import com.github.davidmoten.rx.operators.ReaderOnSubscribe;
 import com.github.davidmoten.rx.operators.StringSplitOperator;
 
@@ -90,7 +89,6 @@ public final class Strings {
                 }
             }
         };
-        return Observable.create(new OnSubscribeUsing2<String, Reader>(resourceFactory,
-                observableFactory, disposeAction, true));
+        return Observable.using(resourceFactory, observableFactory, disposeAction, true);
     }
 }

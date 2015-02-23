@@ -24,8 +24,6 @@ import rx.functions.Func2;
 import rx.schedulers.Schedulers;
 
 import com.github.davidmoten.rx.Strings;
-import com.github.davidmoten.rx.operators.OnSubscribeUsing2;
-import com.github.davidmoten.rx.operators.OperatorUnsubscribeEagerly;
 import com.github.davidmoten.rx.testing.TestingHelper;
 
 public class BigSortTest extends TestCase {
@@ -118,9 +116,7 @@ public class BigSortTest extends TestCase {
         return file -> {
             Observable<String> strings =
             // read the strings from a file
-            Strings.from(file)
-            // close the file eagerly
-                    .lift(OperatorUnsubscribeEagerly.<String> instance());
+            Strings.from(file);
 
             return
             // split/join the strings by new line character
@@ -171,8 +167,7 @@ public class BigSortTest extends TestCase {
                     e.printStackTrace();
                 }
             };
-            return Observable.create(new OnSubscribeUsing2<File, FileOutputStream>(resourceFactory,
-                    observableFactory, disposeAction, true));
+            return Observable.using(resourceFactory, observableFactory, disposeAction, true);
         };
     }
 
