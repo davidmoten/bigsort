@@ -57,21 +57,26 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
             this.worker = Schedulers.trampoline().createWorker();
             this.subscribers = new ArrayList<SourceSubscriber<T>>();
 
-            {
-                int i = 0;
-                for (Observable<T> source : sources) {
-                    SourceSubscriber<T> subscriber = new SourceSubscriber<T>(this, i);
-                    subscribers.add(subscriber);
-                    // nothing should be started by the subscriber because
-                    // onStart requests 0
-                    source.subscribe(subscriber);
-                    i++;
-                }
+            int count = 0;
+            for (Observable<T> source : sources) {
+                SourceSubscriber<T> subscriber = new SourceSubscriber<T>(this, count);
+                subscribers.add(subscriber);
+                count++;
             }
-            status = new AtomicReferenceArray<SubscriberStatus<T>>(subscribers.size());
+            status = new AtomicReferenceArray<SubscriberStatus<T>>(count);
             for (int i = 0; i < subscribers.size(); i++) {
                 status.set(i, new SubscriberStatus<T>(Optional.<T> absent(), false, true));
             }
+            {
+                int i = 0;
+                for (Observable<T> source : sources) {
+                    // nothing should be started by the subscriber because
+                    // onStart requests 0
+                    source.subscribe(subscribers.get(i));
+                    i++;
+                }
+            }
+
         }
 
         private static void addRequest(AtomicLong expected, long n) {
