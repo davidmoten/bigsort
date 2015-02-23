@@ -86,6 +86,7 @@ public class OnSubscribeRefreshSelectTest {
         checkEquals(asList(1, 2, 3, 4, 5), just(4, 5), just(2, 3), just(1).onBackpressureBuffer());
     }
 
+    @SuppressWarnings("unchecked")
     private static void checkEquals(List<Integer> expected, Observable<Integer>... input) {
         Observable<Integer> o = Observable.create(new OnSubscribeRefreshSelect<Integer>(Arrays
                 .asList(input), BigSort.minimum(COMPARATOR)));
