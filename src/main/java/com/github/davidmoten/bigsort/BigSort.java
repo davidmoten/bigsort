@@ -13,7 +13,6 @@ import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
 import rx.functions.Func2;
-import rx.schedulers.Schedulers;
 
 import com.github.davidmoten.rx.operators.OperatorResourceMerger;
 import com.github.davidmoten.util.Optional;
@@ -74,7 +73,7 @@ public class BigSort {
             final Func0<Resource> resourceFactory) {
         return a -> {
             Resource resource = resourceFactory.call();
-            return writer.call(Observable.from(a), resource).subscribeOn(Schedulers.newThread());
+            return writer.call(Observable.from(a), resource);
         };
     }
 

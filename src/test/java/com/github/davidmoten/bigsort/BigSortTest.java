@@ -14,11 +14,11 @@ import java.util.concurrent.TimeUnit;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
 
-import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import rx.Observable;
+import rx.Scheduler;
 import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
@@ -34,7 +34,7 @@ public class BigSortTest extends TestCase {
 
     public static TestSuite suite() {
         TestingHelper.includeBackpressureRequestOverflowTest = false;
-        return TestingHelper.function(sorter(2, 2))
+        return TestingHelper.function(sorter(2, 2, Schedulers.immediate()))
                 .waitForTerminalEvent(100, TimeUnit.MILLISECONDS)
                 .waitForMoreTerminalEvents(100, TimeUnit.MILLISECONDS)
                 // test empty
@@ -44,34 +44,32 @@ public class BigSortTest extends TestCase {
                 .testSuite(BigSortTest.class);
     }
 
-    @Test
     public void testSort128by1MaxTemp2() {
         performTest(128, 1, 2);
     }
 
-    @Test
     public void testSort128by2MaxTemp2() {
         performTest(128, 2, 2);
     }
 
-    @Test
     public void testSort128by1MaxTemp10() {
         performTest(128, 1, 10);
     }
 
-    @Test
     public void testSort128by64MaxTemp10() {
         performTest(128, 64, 10);
     }
 
-    @Test
     public void testSort128by256MaxTemp10() {
         performTest(128, 256, 10);
     }
 
-    @Test
-    public void testSort100KMby10KMaxTemp10() {
+    public void testSort100Kby10KMaxTemp10() {
         performTest(100000, 10000, 10);
+    }
+
+    public void testSort1Mby100KMaxTemp10() {
+        performTest(1000000, 100000, 10);
     }
 
     private static void performTest(int size, int maxToSortPerThread, int maxTempFiles) {
@@ -81,8 +79,17 @@ public class BigSortTest extends TestCase {
         // source is n, n-1, .., 0
         Observable<Integer> source = createDescendingRange(n);
         List<Integer> range = Observable.range(1, n).toList().toBlocking().single();
-        assertEquals(range, sorter(maxToSortPerThread, maxTempFiles).call(source).toList()
-                .toBlocking().single());
+        long t = System.currentTimeMillis();
+        assertEquals(range,
+                sorter(maxToSortPerThread, maxTempFiles, Schedulers.immediate()).call(source)
+                        .toList().toBlocking().single());
+        log.info("time to sort using immediate() = " + ((System.currentTimeMillis() - t) / 1000.0)
+                + "s");
+        t = System.currentTimeMillis();
+        assertEquals(range, sorter(maxToSortPerThread, maxTempFiles, Schedulers.computation())
+                .call(source).toList().toBlocking().single());
+        log.info("time to sort using computation() = "
+                + ((System.currentTimeMillis() - t) / 1000.0) + "s");
     }
 
     private static Observable<Integer> createDescendingRange(final int n) {
@@ -97,7 +104,7 @@ public class BigSortTest extends TestCase {
     private static final Charset UTF8 = Charset.forName("UTF-8");
 
     private static Func1<Observable<Integer>, Observable<Integer>> sorter(
-            final int maxToSortInMemoryPerThread, final int maxTempResources) {
+            final int maxToSortInMemoryPerThread, final int maxTempResources, Scheduler scheduler) {
         return source -> {
             Comparator<Integer> comparator = createComparator();
             Func2<Observable<Integer>, File, Observable<File>> writer = createWriter();
@@ -106,8 +113,7 @@ public class BigSortTest extends TestCase {
             Action1<File> resourceDisposer = createResourceDisposer();
 
             return BigSort.sort(source, comparator, writer, reader, resourceFactory,
-                    resourceDisposer, maxToSortInMemoryPerThread, maxTempResources,
-                    Schedulers.immediate());
+                    resourceDisposer, maxToSortInMemoryPerThread, maxTempResources, scheduler);
         };
     }
 
