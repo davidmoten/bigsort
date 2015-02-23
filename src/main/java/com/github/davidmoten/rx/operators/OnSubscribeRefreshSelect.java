@@ -16,7 +16,6 @@ import rx.Observable.OnSubscribe;
 import rx.Producer;
 import rx.Scheduler.Worker;
 import rx.Subscriber;
-import rx.functions.Action0;
 import rx.functions.Func1;
 import rx.schedulers.Schedulers;
 
@@ -175,15 +174,12 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
                         SubscriberStatus.<T> create(of(selected.value), st.completed, true));
                 // log.info("-> " + selected.value);
                 child.onNext(selected.value);
-                worker.schedule(new Action0() {
-                    @Override
-                    public void call() {
-                        if (!status.get(selected.index).completed) {
-                            nextRequestFrom.set(selected.index);
-                            performPendingRequest();
-                        } else
-                            process();
-                    }
+                worker.schedule(() -> {
+                    if (!status.get(selected.index).completed) {
+                        nextRequestFrom.set(selected.index);
+                        performPendingRequest();
+                    } else
+                        process();
                 });
                 return true;
             } else

@@ -53,61 +53,45 @@ public class BigSort {
             final Comparator<T> comparator,
             final Func2<Observable<T>, Resource, Observable<Resource>> writer,
             final Func0<Resource> resourceFactory, final Scheduler scheduler) {
-        return new Func1<List<T>, Observable<Resource>>() {
-            @Override
-            public Observable<Resource> call(List<T> list) {
-                return Observable.just(list)
-                // sort
-                        .map(sortList(comparator))
-                        // write to resource
-                        .flatMap(writeToResource(writer, resourceFactory))
-                        // subscribe on desired scheduler
-                        .subscribeOn(scheduler);
-            }
-        };
-    }
+        return list -> Observable.just(list)
+        // sort
+                .map(sortList(comparator))
+                // write to resource
+                .flatMap(writeToResource(writer, resourceFactory))
+                // subscribe on desired scheduler
+                .subscribeOn(scheduler);
+    };
 
     private static <T, Resource> Func1<List<T>, List<T>> sortList(final Comparator<T> comparator) {
-        return new Func1<List<T>, List<T>>() {
-            @Override
-            public List<T> call(List<T> list) {
-                Collections.sort(list, comparator);
-                return list;
-            }
+        return list -> {
+            Collections.sort(list, comparator);
+            return list;
         };
     }
 
     private static <T, Resource> Func1<List<T>, Observable<Resource>> writeToResource(
             final Func2<Observable<T>, Resource, Observable<Resource>> writer,
             final Func0<Resource> resourceFactory) {
-        return new Func1<List<T>, Observable<Resource>>() {
-            @Override
-            public Observable<Resource> call(List<T> a) {
-                Resource resource = resourceFactory.call();
-                return writer.call(Observable.from(a), resource)
-                        .subscribeOn(Schedulers.newThread());
-            }
+        return a -> {
+            Resource resource = resourceFactory.call();
+            return writer.call(Observable.from(a), resource).subscribeOn(Schedulers.newThread());
         };
     }
 
     public static <T> Func1<List<T>, Integer> minimum(final Comparator<T> comparator) {
-        return new Func1<List<T>, Integer>() {
-
-            @Override
-            public Integer call(List<T> list) {
-                if (list.isEmpty())
-                    throw new RuntimeException("list cannot be empty");
-                Optional<Integer> index = absent();
-                Optional<T> min = Optional.absent();
-                for (int i = 0; i < list.size(); i++) {
-                    T value = list.get(i);
-                    if (!index.isPresent() || comparator.compare(value, min.get()) < 0) {
-                        index = of(i);
-                        min = of(value);
-                    }
+        return list -> {
+            if (list.isEmpty())
+                throw new RuntimeException("list cannot be empty");
+            Optional<Integer> index = absent();
+            Optional<T> min = Optional.absent();
+            for (int i = 0; i < list.size(); i++) {
+                T value = list.get(i);
+                if (!index.isPresent() || comparator.compare(value, min.get()) < 0) {
+                    index = of(i);
+                    min = of(value);
                 }
-                return index.get();
             }
+            return index.get();
         };
     }
 
