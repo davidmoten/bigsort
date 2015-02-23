@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import junit.framework.TestCase;
@@ -43,11 +44,12 @@ public class BigSortTest extends TestCase {
     }
 
     public void testLarge() {
+        System.setProperty("rx.ring-buffer.size", "2048");
         final int n = 128;// passes on 127!!
         // source is n, n-1, .., 0
         Observable<Integer> source = createDescendingRange(n);
-        assertEquals(Observable.range(1, n).toList().toBlocking().single(),
-                sorter(1, 2).call(source).toList().toBlocking().single());
+        List<Integer> range = Observable.range(1, n).toList().toBlocking().single();
+        assertEquals(range, sorter(1, 2).call(source).toList().toBlocking().single());
     }
 
     private Observable<Integer> createDescendingRange(final int n) {
