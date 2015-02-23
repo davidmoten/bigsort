@@ -51,7 +51,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 
         public MyProducer(Iterable<Observable<T>> sources, Func1<List<T>, Integer> selector,
                 Subscriber<? super T> child) {
-            System.out.println("creating producer for refresh select");
+            // System.out.println("creating producer for refresh select");
             this.selector = selector;
             this.child = child;
             this.worker = Schedulers.trampoline().createWorker();

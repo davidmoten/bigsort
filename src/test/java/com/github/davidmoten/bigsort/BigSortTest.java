@@ -69,6 +69,11 @@ public class BigSortTest extends TestCase {
         performTest(128, 256, 10);
     }
 
+    @Test
+    public void testSort1Mby100KMaxTemp10() {
+        performTest(1000000, 10000, 10);
+    }
+
     private static void performTest(int size, int maxToSortPerThread, int maxTempFiles) {
         final int n = 128;// passes on 127!!
         // source is n, n-1, .., 0
@@ -143,15 +148,6 @@ public class BigSortTest extends TestCase {
         };
     }
 
-    private static <T> Action1<T> log() {
-        return new Action1<T>() {
-            @Override
-            public void call(T t) {
-                log.info("value=" + t);
-            }
-        };
-    }
-
     private static Func1<String, Boolean> nonEmptyLines() {
         return new Func1<String, Boolean>() {
             @Override
@@ -179,7 +175,7 @@ public class BigSortTest extends TestCase {
 
                     @Override
                     public FileOutputStream call() {
-                        log.info("opening writing " + file);
+                        // log.info("opening writing " + file);
                         try {
                             return new FileOutputStream(file);
                         } catch (FileNotFoundException e) {
@@ -216,7 +212,7 @@ public class BigSortTest extends TestCase {
                     @Override
                     public void call(FileOutputStream fos) {
                         try {
-                            log.info("closing writing file " + file);
+                            // log.info("closing writing file " + file);
                             fos.close();
                         } catch (IOException e) {
                             e.printStackTrace();

@@ -17,6 +17,7 @@ import rx.schedulers.Schedulers;
 
 import com.github.davidmoten.rx.operators.OperatorResourceMerger;
 import com.github.davidmoten.util.Optional;
+import com.github.davidmoten.util.Preconditions;
 
 public class BigSort {
 
@@ -26,6 +27,9 @@ public class BigSort {
             final Func1<Resource, Observable<T>> reader, final Func0<Resource> resourceFactory,
             final Action1<Resource> resourceDisposer, int maxToSortInMemoryPerThread,
             final int maxTempResources, Scheduler scheduler) {
+        Preconditions.checkArgument(maxToSortInMemoryPerThread > 0,
+                "maxToSortInMemoryPerThread must be greater than 0");
+        Preconditions.checkArgument(maxTempResources >= 2, "maxTempResources must be at least 2");
         return source
         // buffer into groups small enough to sort in memory
                 .buffer(maxToSortInMemoryPerThread)

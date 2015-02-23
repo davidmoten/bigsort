@@ -66,9 +66,9 @@ public class OperatorResourceMerger<Resource, T> implements Operator<Resource, R
             @Override
             public void onNext(Resource r) {
                 resources.add(r);
-                log.info("added resource " + r);
+                // log.info("added resource " + r);
                 if (resources.size() == maxTempResources) {
-                    log.info("reducing " + resources.size() + " to 1");
+                    // log.info("reducing " + resources.size() + " to 1");
                     reduce();
                 }
             }
@@ -84,7 +84,7 @@ public class OperatorResourceMerger<Resource, T> implements Operator<Resource, R
             return;
         else {
             Resource resource = resourceFactory.call();
-            log.info("reducing " + resources.size() + " resources");
+            // log.info("reducing " + resources.size() + " resources");
             Observable<T> items = merge(resources, comparator, reader).doOnCompleted(new Action0() {
                 @Override
                 public void call() {
