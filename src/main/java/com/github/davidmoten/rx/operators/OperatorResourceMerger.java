@@ -8,7 +8,6 @@ import java.util.List;
 import rx.Observable;
 import rx.Observable.Operator;
 import rx.Subscriber;
-import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
@@ -83,12 +82,9 @@ public class OperatorResourceMerger<Resource, T> implements Operator<Resource, R
         else {
             Resource resource = resourceFactory.call();
             // log.info("reducing " + resources.size() + " resources");
-            Observable<T> items = merge(resources, comparator, reader).doOnCompleted(new Action0() {
-                @Override
-                public void call() {
-                    for (Resource r : resources)
-                        resourceDisposer.call(r);
-                }
+            Observable<T> items = merge(resources, comparator, reader).doOnCompleted(() -> {
+                for (Resource r : resources)
+                    resourceDisposer.call(r);
             });
             writer.call(items, resource).subscribe(new Subscriber<Resource>() {
 
@@ -111,22 +107,20 @@ public class OperatorResourceMerger<Resource, T> implements Operator<Resource, R
         }
     }
 
-    private static <T, Resource> Observable<T> merge(List<Resource> resources,
+    private static <T, Resource> Observable<T> merge(List<Resource> resourcesList,
             final Comparator<T> comparator, final Func1<Resource, Observable<T>> reader) {
-        return Observable.just(resources)
+        return Observable.just(resourcesList)
         // merge all resources into a single observable stream
-                .flatMap(new Func1<List<Resource>, Observable<T>>() {
-                    @Override
-                    public Observable<T> call(List<Resource> resources) {
-                        List<Observable<T>> obs = new ArrayList<Observable<T>>();
-                        for (Resource resource : resources)
-                            obs.add(reader.call(resource).onBackpressureBuffer());
-                        return Observable.create(
-                                new OnSubscribeRefreshSelect<T>(obs, BigSort
-                                        .<T> minimum(comparator)))
-                        // TODO remove this once honours backp
-                                .onBackpressureBuffer();
-                    }
-                });
+                .flatMap(
+                        resources -> {
+                            List<Observable<T>> obs = new ArrayList<Observable<T>>();
+                            for (Resource resource : resources)
+                                obs.add(reader.call(resource).onBackpressureBuffer());
+                            return Observable.create(
+                                    new OnSubscribeRefreshSelect<T>(obs, BigSort
+                                            .<T> minimum(comparator)))
+                            // TODO remove this once honours backp
+                                    .onBackpressureBuffer();
+                        });
     }
 }
