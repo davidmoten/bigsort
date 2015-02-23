@@ -119,7 +119,7 @@ public class OperatorResourceMerger<Resource, T> implements Operator<Resource, R
                             return Observable.create(
                                     new OnSubscribeRefreshSelect<T>(obs, BigSort
                                             .<T> minimum(comparator)))
-                            // TODO remove this once honours backp
+                            // add backpressure support to RefeshSelect operator
                                     .onBackpressureBuffer();
                         });
     }

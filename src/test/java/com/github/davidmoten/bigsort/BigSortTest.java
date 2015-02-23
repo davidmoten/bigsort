@@ -68,9 +68,9 @@ public class BigSortTest extends TestCase {
         performTest(100000, 10000, 10);
     }
 
-    public void testSort1Mby100KMaxTemp10() {
-        performTest(1000000, 100000, 10);
-    }
+    // public void testSort1Mby100KMaxTemp10() {
+    // performTest(1000000, 100000, 10);
+    // }
 
     private static void performTest(int size, int maxToSortPerThread, int maxTempFiles) {
         log.info("sorting " + size + " values using maxToSort=" + maxToSortPerThread
