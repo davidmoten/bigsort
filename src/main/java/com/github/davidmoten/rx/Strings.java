@@ -7,11 +7,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.Charset;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import rx.Observable;
 import rx.functions.Action1;
@@ -30,11 +26,7 @@ import com.github.davidmoten.rx.operators.StringSplitOperator;
  */
 public final class Strings {
 
-    private static final Logger log = LoggerFactory.getLogger(Strings.class);
-
     public static final Charset DEFAULT_CHARSET = Charset.forName("UTF-8");
-
-    private static final AtomicInteger count = new AtomicInteger();
 
     /**
      * Returns null if input is null otherwise returns input.toString().trim().

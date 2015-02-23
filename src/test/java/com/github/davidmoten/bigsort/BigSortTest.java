@@ -75,6 +75,8 @@ public class BigSortTest extends TestCase {
     }
 
     private static void performTest(int size, int maxToSortPerThread, int maxTempFiles) {
+        log.info("sorting " + size + " values using maxToSort=" + maxToSortPerThread
+                + " and max temp files=" + maxTempFiles);
         final int n = 128;// passes on 127!!
         // source is n, n-1, .., 0
         Observable<Integer> source = createDescendingRange(n);

@@ -3,6 +3,7 @@ package com.github.davidmoten.rx.operators;
 import static com.github.davidmoten.util.Optional.of;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -58,7 +59,9 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
             this.subscribers = new ArrayList<SourceSubscriber<T>>();
 
             int count = 0;
-            for (Observable<T> source : sources) {
+            Iterator<Observable<T>> it = sources.iterator();
+            while (it.hasNext()) {
+                it.next();
                 SourceSubscriber<T> subscriber = new SourceSubscriber<T>(this, count);
                 subscribers.add(subscriber);
                 count++;

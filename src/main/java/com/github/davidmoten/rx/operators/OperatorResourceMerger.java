@@ -5,9 +5,6 @@ import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import rx.Observable;
 import rx.Observable.Operator;
 import rx.Subscriber;
@@ -21,7 +18,8 @@ import com.github.davidmoten.bigsort.BigSort;
 
 public class OperatorResourceMerger<Resource, T> implements Operator<Resource, Resource> {
 
-    private static final Logger log = LoggerFactory.getLogger(OperatorResourceMerger.class);
+    // private static final Logger log =
+    // LoggerFactory.getLogger(OperatorResourceMerger.class);
 
     private final Comparator<T> comparator;
     private final Func2<Observable<T>, Resource, Observable<Resource>> writer;
