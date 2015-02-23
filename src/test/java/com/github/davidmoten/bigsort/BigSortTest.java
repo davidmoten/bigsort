@@ -1,9 +1,11 @@
 package com.github.davidmoten.bigsort;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.util.Comparator;
 import java.util.List;
@@ -69,17 +71,18 @@ public class BigSortTest extends TestCase {
 
     @Test
     public void testSort1Mby100KMaxTemp10() {
-        performTest(1000000, 10000, 10);
+        performTest(1000000, 100000, 10);
     }
 
     private static void performTest(int size, int maxToSortPerThread, int maxTempFiles) {
         log.info("sorting " + size + " values using maxToSort=" + maxToSortPerThread
                 + " and maxTempFiles=" + maxTempFiles);
-        final int n = 128;// passes on 127!!
+        final int n = size;// passes on 127!!
         // source is n, n-1, .., 0
         Observable<Integer> source = createDescendingRange(n);
         List<Integer> range = Observable.range(1, n).toList().toBlocking().single();
-        assertEquals(range, sorter(1, 2).call(source).toList().toBlocking().single());
+        assertEquals(range, sorter(maxToSortPerThread, maxTempFiles).call(source).toList()
+                .toBlocking().single());
     }
 
     private static Observable<Integer> createDescendingRange(final int n) {
@@ -141,33 +144,34 @@ public class BigSortTest extends TestCase {
     private static Func2<Observable<Integer>, File, Observable<File>> createWriter() {
         return (lines, file) -> {
             // log.info("creating writer for " + file);
-            Func0<FileOutputStream> resourceFactory = () -> {
+            Func0<OutputStream> resourceFactory = () -> {
                 // log.info("opening writing " + file);
                 try {
-                    return new FileOutputStream(file);
+                    return new BufferedOutputStream(new FileOutputStream(file));
                 } catch (FileNotFoundException e) {
                     throw new RuntimeException(e);
                 }
             };
-            Func1<FileOutputStream, Observable<File>> observableFactory = fos -> {
+            Func1<OutputStream, Observable<Integer>> observableFactory = os -> {
                 return lines.doOnNext(n -> {
                     // log.info("writing " + n + " to " + file);
                         try {
-                            fos.write((n + "\n").getBytes(UTF8));
+                            os.write((n + "\n").getBytes(UTF8));
                         } catch (IOException e) {
                             throw new RuntimeException(e);
                         }
-                    }).count().map(count -> file);
+                    });
             };
-            Action1<FileOutputStream> disposeAction = fos -> {
+            Action1<OutputStream> disposeAction = os -> {
                 try {
                     // log.info("closing writing file " + file);
-                    fos.close();
+                    os.close();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             };
-            return Observable.using(resourceFactory, observableFactory, disposeAction, true);
+            return Observable.using(resourceFactory, observableFactory, disposeAction, true)
+                    .count().map(count -> file);
         };
     }
 
