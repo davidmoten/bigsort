@@ -37,6 +37,9 @@ public class BigSort {
                 // once the resource count is maxTempResources
                 .lift(new OperatorResourceMerger<Resource, T>(comparator, writer, reader,
                         resourceFactory, resourceDisposer, maxTempResources))
+                // help out backpressure because ResourceMerger doesn't support
+                // yet
+                .onBackpressureBuffer()
                 // emit the contents of the last file in the reduction process
                 .flatMap(reader);
 

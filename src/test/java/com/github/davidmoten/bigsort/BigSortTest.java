@@ -12,6 +12,7 @@ import java.util.concurrent.TimeUnit;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
 
+import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,8 +44,32 @@ public class BigSortTest extends TestCase {
                 .testSuite(BigSortTest.class);
     }
 
-    public void testLarge() {
-        System.setProperty("rx.ring-buffer.size", "2048");
+    @Test
+    public void testSort128by1MaxTemp2() {
+        performTest(128, 1, 2);
+    }
+
+    @Test
+    public void testSort128by2MaxTemp2() {
+        performTest(128, 2, 2);
+    }
+
+    @Test
+    public void testSort128by1MaxTemp10() {
+        performTest(128, 1, 10);
+    }
+
+    @Test
+    public void testSort128by64MaxTemp10() {
+        performTest(128, 64, 10);
+    }
+
+    @Test
+    public void testSort128by256MaxTemp10() {
+        performTest(128, 256, 10);
+    }
+
+    private static void performTest(int size, int maxToSortPerThread, int maxTempFiles) {
         final int n = 128;// passes on 127!!
         // source is n, n-1, .., 0
         Observable<Integer> source = createDescendingRange(n);
@@ -52,7 +77,7 @@ public class BigSortTest extends TestCase {
         assertEquals(range, sorter(1, 2).call(source).toList().toBlocking().single());
     }
 
-    private Observable<Integer> createDescendingRange(final int n) {
+    private static Observable<Integer> createDescendingRange(final int n) {
         return Observable.range(0, n).map(new Func1<Integer, Integer>() {
             @Override
             public Integer call(Integer i) {
