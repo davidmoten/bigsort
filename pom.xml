@@ -22,7 +22,7 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<maven.compiler.target>1.6</maven.compiler.target>
+		<maven.compiler.target>1.8</maven.compiler.target>
 		<rxjava.version>1.0.7</rxjava.version>
 		<jmh.version>1.2</jmh.version>
 		<slf4j.version>1.7.7</slf4j.version>
@@ -147,7 +147,19 @@
 					<target>${maven.compiler.target}</target>
 				</configuration>
 			</plugin>
-
+			<plugin>
+				<groupId>net.orfjackal.retrolambda</groupId>
+				<artifactId>retrolambda-maven-plugin</artifactId>
+				<version>1.8.1</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>process-main</goal>
+							<goal>process-test</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<artifactId>maven-site-plugin</artifactId>
 				<version>${m3.site.version}</version>
@@ -240,6 +252,42 @@
 				</configuration>
 			</plugin>
 		</plugins>
+		<pluginManagement>
+			<plugins>
+				<!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself.-->
+				<plugin>
+					<groupId>org.eclipse.m2e</groupId>
+					<artifactId>lifecycle-mapping</artifactId>
+					<version>1.0.0</version>
+					<configuration>
+						<lifecycleMappingMetadata>
+							<pluginExecutions>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>
+											net.orfjackal.retrolambda
+										</groupId>
+										<artifactId>
+											retrolambda-maven-plugin
+										</artifactId>
+										<versionRange>
+											[1.8.1,)
+										</versionRange>
+										<goals>
+											<goal>process-test</goal>
+											<goal>process-main</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<ignore></ignore>
+									</action>
+								</pluginExecution>
+							</pluginExecutions>
+						</lifecycleMappingMetadata>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
 	</build>
 
 	<profiles>
