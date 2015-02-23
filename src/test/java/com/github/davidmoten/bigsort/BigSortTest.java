@@ -150,10 +150,10 @@ public class BigSortTest extends TestCase {
                 }
             };
             Func1<FileOutputStream, Observable<File>> observableFactory = fos -> {
-                return lines.doOnNext(s -> {
-                    // log.info("writing " + s + " to " + file);
+                return lines.doOnNext(n -> {
+                    // log.info("writing " + n + " to " + file);
                         try {
-                            fos.write((s + "\n").getBytes(UTF8));
+                            fos.write((n + "\n").getBytes(UTF8));
                         } catch (IOException e) {
                             throw new RuntimeException(e);
                         }
