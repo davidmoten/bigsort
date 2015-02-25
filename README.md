@@ -21,6 +21,8 @@ Observable<String> source = Observable.just("c", "b", "a");
 
 int maxToSortInMemoryPerThread = 3;
 int maxTempFiles = 2;
+
+// sort in parallel
 Scheduler scheduler = Schedulers.computation();
 
 Observable<String> sorted = BigSort.sort(source,
@@ -42,6 +44,8 @@ Func2<Observable<Integer>, File, Observable<File>> writer = createWriter();
 Func1<File, Observable<Integer>> reader = createReader();
 Func0<File> resourceFactory = BigSort.createFileResourceFactory();
 Action1<File> resourceDisposer = BigSort.createFileResourceDisposer();
+// sort synchronously
+Scheduler scheduler = Schedulers.immediate();
 
 Observable<Integer> sorted = 
         BigSort.sort(source, comparator, writer, reader,
