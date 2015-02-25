@@ -43,9 +43,11 @@ Func1<File, Observable<Integer>> reader = createReader();
 Func0<File> resourceFactory = BigSort.createFileResourceFactory();
 Action1<File> resourceDisposer = BigSort.createFileResourceDisposer();
 
-Observable<Integer> sorted = BigSort.sort(source, comparator, writer, reader,
-					resourceFactory, resourceDisposer,
-					maxToSortInMemoryPerThread, maxTempResources, scheduler);
+Observable<Integer> sorted = 
+        BigSort.sort(source, comparator, writer, reader,
+					resourceFactory, resourceDisposer, 
+					maxToSortInMemoryPerThread, maxTempResources,
+					scheduler);
 ```
 
 
