@@ -33,7 +33,7 @@ Observable<String> sorted =
 More generic example
 -------------------------
 
-A more generic example that sorts a stream of Integer, also using files but some other resource type 
+A more generic example that sorts a stream of ```Integer```, also using files but some other resource type 
 (for example database tables or S3) could be used provided *writer*, *reader*, *resourceFactory*,
 *resourceDisposer* are supplied for that resource type.
 
