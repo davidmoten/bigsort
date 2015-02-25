@@ -34,7 +34,7 @@ A more generic example that sorts a stream of Integer, also using files but some
 (for example database tables or S3) could be used provided *writer*, *reader*, *resourceFactory*,
 *resourceDisposer* are supplied for that resource type.
 
-Below is an extract from [BigSortTest.java](src/main/test/java/com/github/davidmoten/bigsort/BigSortTest.java):
+Below is an extract from [BigSortTest.java](src/test/java/com/github/davidmoten/bigsort/BigSortTest.java):
 
 ```java
 Comparator<Integer> comparator = createComparator();
