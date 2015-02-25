@@ -25,8 +25,9 @@ int maxTempFiles = 2;
 // sort in parallel
 Scheduler scheduler = Schedulers.computation();
 
-Observable<String> sorted = BigSort.sort(source,
-		maxToSortInMemoryPerThread, maxTempFiles, scheduler);
+Observable<String> sorted = 
+        BigSort.sort(source, maxToSortInMemoryPerThread,
+                     maxTempFiles, scheduler);
 ```
 
 More generic example
