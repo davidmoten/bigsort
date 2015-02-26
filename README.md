@@ -30,6 +30,21 @@ Observable<String> sorted =
                      maxTempFiles, scheduler);
 ```
 
+How to sort Serializable & Comparable objects
+---------------------------------
+
+```java
+int n = 1000;
+//make a descending list of integers
+Observable<Integer> source = Observable.range(1,n).map(i -> n - i + 1);
+int maxToSortInMemoryPerThread = 2;
+int maxTempFiles = 2;
+Scheduler scheduler = Schedulers.computation();
+Observable<Integer> sorted = 
+        BigSort.sort(source, maxToSortInMemoryPerThread,
+                             maxTempFiles, scheduler); 
+```
+
 More generic example
 -------------------------
 

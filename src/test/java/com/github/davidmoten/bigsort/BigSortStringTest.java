@@ -21,7 +21,7 @@ public class BigSortStringTest {
 		int maxTempFiles = 2;
 		Scheduler scheduler = Schedulers.computation();
 
-		Observable<String> sorted = BigSort.sort(source,
+		Observable<String> sorted = BigSort.sortLines(source,
 				maxToSortInMemoryPerThread, maxTempFiles, scheduler);
 
 		List<String> list = sorted
