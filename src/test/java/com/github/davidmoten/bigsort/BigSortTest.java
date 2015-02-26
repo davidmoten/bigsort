@@ -1,10 +1,11 @@
 package com.github.davidmoten.bigsort;
 
+import static com.github.davidmoten.bigsort.Actions.re;
+
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.util.Comparator;
@@ -187,24 +188,11 @@ public class BigSortTest extends TestCase {
                     throw new RuntimeException(e);
                 }
             };
-            Func1<OutputStream, Observable<Integer>> observableFactory = os -> {
-                return lines.doOnNext(n -> {
-                    // log.info("writing " + n + " to " + file);
-                        try {
-                            os.write((n + "\n").getBytes(UTF8));
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                    });
-            };
-            Action1<OutputStream> disposeAction = os -> {
-                try {
-                    // log.info("closing writing file " + file);
-                    os.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            };
+            Func1<OutputStream, Observable<Integer>> observableFactory = os -> lines
+                    .doOnNext(re(n -> os.write((n + "\n").getBytes(UTF8))));
+
+            Action1<OutputStream> disposeAction = re(os -> os.close());
+
             return Observable.using(resourceFactory, observableFactory, disposeAction, true)
                     .count().map(count -> file);
         };
