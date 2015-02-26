@@ -5,10 +5,14 @@ import rx.schedulers.Schedulers;
 
 public class BigSortMain {
 
-    public static void main(String[] args) {
-        // for profiling
-        int n = 10000000;
-        BigSort.sort(Observable.range(1, n).map(i -> n - i + 1), 100000, 10, Schedulers.immediate())
-                .subscribe();
-    }
+	public static void main(String[] args) {
+		// for profiling
+		int n = 100000000;
+		System.out.println(n * Math.log(n));
+		long t = System.currentTimeMillis();
+
+		BigSort.sort(Observable.range(1, n).map(i -> n - i + 1), 100000, 100,
+				Schedulers.computation()).subscribe();
+		System.out.println(((System.currentTimeMillis() - t) / 1000.0) + "s");
+	}
 }
