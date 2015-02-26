@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import rx.Observable;
 import rx.Scheduler;
+import rx.Subscriber;
 import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
@@ -69,12 +70,39 @@ public class BigSortTest extends TestCase {
         performTest(100000, 10000, 10);
     }
 
+    public void testSortMany() {
+
+    }
+
     public void testSortUsingSerialization() {
-        int n = 10;
+        performSerializableTest(1000, 100, 5);
+    }
+
+    private void performSerializableTest(int n, int maxToSortPerThread, int maxTempFiles) {
         Observable<Integer> source = Observable.range(1, n).map(i -> n - i + 1);
-        List<Integer> result = BigSort.sort(source, 2, 2, Schedulers.immediate()).toList()
-                .toBlocking().single();
-        assertEquals(Observable.range(1, n).toList().toBlocking().single(), result);
+        BigSort.sort(source, maxToSortPerThread, maxTempFiles, Schedulers.immediate()).subscribe(
+                new Subscriber<Integer>() {
+                    Integer last = null;
+
+                    @Override
+                    public void onCompleted() {
+                        assertEquals((int) last, n);
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    @Override
+                    public void onNext(Integer i) {
+                        if (last != null && i != last + 1) {
+                            throw new RuntimeException("not sorted!");
+                        }
+                        last = i;
+                    }
+                });
+
     }
 
     // public void testSort1Mby100KMaxTemp10() {

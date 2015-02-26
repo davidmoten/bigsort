@@ -166,6 +166,7 @@ public class BigSort {
 
     }
 
+    @SuppressWarnings("unchecked")
     public static <T extends Serializable> Func1<File, Observable<T>> createReader() {
         return file -> Observable.create(AbstractOnSubscribe.create(s -> {
             ObjectInputStream ios = s.state();
