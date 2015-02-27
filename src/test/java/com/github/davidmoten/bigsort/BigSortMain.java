@@ -7,7 +7,7 @@ public class BigSortMain {
 
 	public static void main(String[] args) {
 		// for profiling
-		int n = 1000000000;
+		int n = 1000000;
 		System.out.println(n * Math.log(n));
 		long t = System.currentTimeMillis();
 

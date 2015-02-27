@@ -72,11 +72,14 @@ Observable<Integer> sorted =
 
 Benchmarks
 ---------------
-Time to sort a list of integers using ```ObjectOutputStream``` and ```ObjectInputStream``` for serialization (probably pretty slow!):
+Time to sort a list of integers using ```ObjectOutputStream``` and ```ObjectInputStream``` for serialization (probably pretty slow!) is below. Max number to sort in memory per thread was 100K and max temporary files was 10 using an SSD and 6 cores on a Xeon ES-1650.
 
-| Size         | Time (s) |
+| Number of integers | Time (s) |
 |--------------|----------|
-| 10<sup>9</sup> | 413.727 |
+| 10<sup>9</sup> | 413   |
+| 10<sup>8</sup> | 19.4  |
+| 10<sup>7</sup> | 0.7   |
+| 10<sup>6</sup> | 0.27  |
 
 
 
