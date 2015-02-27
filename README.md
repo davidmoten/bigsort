@@ -81,5 +81,7 @@ Time to sort a list of integers using ```ObjectOutputStream``` and ```ObjectInpu
 | 10<sup>7</sup> | 0.7   |
 | 10<sup>6</sup> | 0.27  |
 
+The above pattern suggests the the algorithm is <pre>O(2<sup>log(n)</sup>.n.log(n))</pre>.
+
 
 
