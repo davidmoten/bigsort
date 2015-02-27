@@ -70,5 +70,13 @@ Observable<Integer> sorted =
 					scheduler);
 ```
 
+Benchmarks
+---------------
+Time to sort a list of integers using ```ObjectOutputStream``` and ```ObjectInputStream``` for serialization (probably pretty slow!):
+
+| Size         | Time (s) |
+|--------------|----------|
+| 10<sup>9</sup> | 413.727 |
+
 
 
