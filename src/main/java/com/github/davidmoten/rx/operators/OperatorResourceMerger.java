@@ -17,9 +17,6 @@ import com.github.davidmoten.bigsort.BigSort;
 
 public class OperatorResourceMerger<Resource, T> implements Operator<Resource, Resource> {
 
-    // private static final Logger log =
-    // LoggerFactory.getLogger(OperatorResourceMerger.class);
-
     private final Comparator<T> comparator;
     private final Func2<Observable<T>, Resource, Observable<Resource>> writer;
     private final Func1<Resource, Observable<T>> reader;
@@ -83,7 +80,7 @@ public class OperatorResourceMerger<Resource, T> implements Operator<Resource, R
             Resource resource = resourceFactory.call();
             // log.info("reducing " + resources.size() + " resources");
             Observable<T> items = merge(resources, comparator, reader).doOnCompleted(() -> {
-                for (Resource r : resources) 
+                for (Resource r : resources)
                     resourceDisposer.call(r);
             });
             writer.call(items, resource).subscribe(new Subscriber<Resource>() {
@@ -113,12 +110,12 @@ public class OperatorResourceMerger<Resource, T> implements Operator<Resource, R
         // merge all resources into a single observable stream
                 .flatMap(
                         resources -> {
-                            List<Observable<T>> obs = new ArrayList<Observable<T>>();
+                            List<Observable<T>> obs = new ArrayList<>();
                             for (Resource resource : resources)
                                 obs.add(reader.call(resource).onBackpressureBuffer());
                             return Observable.create(
                                     new OnSubscribeRefreshSelect<T>(obs, BigSort
-                                            .<T> minimum(comparator)))
+                                            .minimum(comparator)))
                             // add backpressure support to RefeshSelect operator
                                     .onBackpressureBuffer();
                         });

@@ -1,5 +1,6 @@
 package com.github.davidmoten.rx.operators;
 
+import static com.github.davidmoten.util.Optional.absent;
 import static com.github.davidmoten.util.Optional.of;
 
 import java.util.ArrayList;
@@ -55,7 +56,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
             this.selector = selector;
             this.child = child;
             this.worker = Schedulers.trampoline().createWorker();
-            this.subscribers = new ArrayList<SourceSubscriber<T>>();
+            this.subscribers = new ArrayList<>();
 
             int count = 0;
             Iterator<Observable<T>> it = sources.iterator();
@@ -65,9 +66,9 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
                 subscribers.add(subscriber);
                 count++;
             }
-            status = new AtomicReferenceArray<SubscriberStatus<T>>(count);
+            status = new AtomicReferenceArray<>(count);
             for (int i = 0; i < subscribers.size(); i++) {
-                status.set(i, new SubscriberStatus<T>(Optional.<T> absent(), false, true));
+                status.set(i, new SubscriberStatus<T>(absent(), false, true));
             }
             {
                 int i = 0;
@@ -149,7 +150,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
         private void handleOnNext(int index, Notification<T> event) {
             T value = event.getValue();
             SubscriberStatus<T> st = status.get(index);
-            status.set(index, SubscriberStatus.create(Optional.of(value), st.completed, false));
+            status.set(index, SubscriberStatus.create(of(value), st.completed, false));
             process();
         }
 
@@ -171,7 +172,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
                 final IndexValue<T> selected = select(indexValues);
                 SubscriberStatus<T> st = status.get(selected.index);
                 status.set(selected.index,
-                        SubscriberStatus.<T> create(of(selected.value), st.completed, true));
+                        SubscriberStatus.create(of(selected.value), st.completed, true));
                 // log.info("-> " + selected.value);
                 child.onNext(selected.value);
                 worker.schedule(() -> {
@@ -196,7 +197,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
         }
 
         private List<IndexValue<T>> getIndexValues() {
-            List<IndexValue<T>> indexValues = new ArrayList<IndexValue<T>>();
+            List<IndexValue<T>> indexValues = new ArrayList<>();
             for (int i = 0; i < status.length(); i++) {
                 if (!status.get(i).used && status.get(i).latest.isPresent())
                     indexValues.add(new IndexValue<T>(i, status.get(i).latest.get()));
@@ -205,7 +206,7 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
         }
 
         private IndexValue<T> select(List<IndexValue<T>> indexValues) {
-            List<T> a = new ArrayList<T>(indexValues.size());
+            List<T> a = new ArrayList<>(indexValues.size());
             for (IndexValue<T> iv : indexValues) {
                 a.add(iv.value);
             }
@@ -253,17 +254,17 @@ public class OnSubscribeRefreshSelect<T> implements OnSubscribe<T> {
 
         @Override
         public void onCompleted() {
-            producer.event(index, Notification.<T> createOnCompleted());
+            producer.event(index, Notification.createOnCompleted());
         }
 
         @Override
         public void onError(Throwable e) {
-            producer.event(index, Notification.<T> createOnError(e));
+            producer.event(index, Notification.createOnError(e));
         }
 
         @Override
         public void onNext(T t) {
-            producer.event(index, Notification.<T> createOnNext(t));
+            producer.event(index, Notification.createOnNext(t));
         }
 
     }
