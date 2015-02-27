@@ -162,7 +162,7 @@ public class BigSort {
 		return Checked.f0(() -> {
 			String directory = tempDirectory.or(System
 					.getProperty("java.io.tmpdir"));
-			return File.createTempFile("temp", ".txt", new File(directory));
+			return File.createTempFile("tempBigsort", "", new File(directory));
 		});
 	}
 
@@ -200,7 +200,11 @@ public class BigSort {
 				Checked.f1(sub -> new ObjectInputStream(
 						new BufferedInputStream(new FileInputStream(file)))),
 				// disposer
-				Checked.a1(ois -> ois.close())));
+				Checked.a1(ois -> {
+					ois.close();
+					if (!file.delete())
+						throw new RuntimeException();
+				})));
 	}
 
 	public static <T extends Serializable> Func2<Observable<T>, File, Observable<File>> createWriter() {

@@ -83,7 +83,7 @@ public class OperatorResourceMerger<Resource, T> implements Operator<Resource, R
             Resource resource = resourceFactory.call();
             // log.info("reducing " + resources.size() + " resources");
             Observable<T> items = merge(resources, comparator, reader).doOnCompleted(() -> {
-                for (Resource r : resources)
+                for (Resource r : resources) 
                     resourceDisposer.call(r);
             });
             writer.call(items, resource).subscribe(new Subscriber<Resource>() {
