@@ -92,7 +92,7 @@
 		<dependency>
 			<groupId>com.github.davidmoten</groupId>
 			<artifactId>rxjava-slf4j</artifactId>
-			<version>0.3</version>
+			<version>0.5.1</version>
 		</dependency>
 
 		<!-- Test Dependencies -->
