@@ -39,69 +39,100 @@ public class OperatorResourceMerger<Resource, T> implements Operator<Resource, R
 
     @Override
     public Subscriber<? super Resource> call(final Subscriber<? super Resource> child) {
-        final List<Resource> resources = new LinkedList<Resource>();
-        return new Subscriber<Resource>(child) {
-
-            @Override
-            public void onCompleted() {
-                reduce();
-                for (Resource r : resources)
-                    if (!isUnsubscribed())
-                        child.onNext(r);
-                if (!isUnsubscribed())
-                    child.onCompleted();
-            }
-
-            @Override
-            public void onError(Throwable e) {
-                child.onError(e);
-            }
-
-            @Override
-            public void onNext(Resource r) {
-                resources.add(r);
-                // log.info("added resource " + r);
-                if (resources.size() == maxTempResources) {
-                    // log.info("reducing " + resources.size() + " to 1");
-                    reduce();
-                }
-            }
-
-            private void reduce() {
-                OperatorResourceMerger.this.reduce(resources, child);
-            }
-        };
+        return new ResourcesSubscriber<Resource, T>(child, comparator, writer, reader,
+                resourceFactory, resourceDisposer, maxTempResources);
     }
 
-    private void reduce(final List<Resource> resources, final Subscriber<? super Resource> child) {
-        if (resources.size() == 1)
-            return;
-        else {
-            Resource resource = resourceFactory.call();
-            // log.info("reducing " + resources.size() + " resources");
-            Observable<T> items = merge(resources, comparator, reader).doOnCompleted(() -> {
-                for (Resource r : resources)
-                    resourceDisposer.call(r);
-            });
-            writer.call(items, resource).subscribe(new Subscriber<Resource>() {
+    private static class ResourcesSubscriber<Resource, T> extends Subscriber<Resource> {
 
-                @Override
-                public void onCompleted() {
-                    // only emits one so after onNext handled don't care
-                }
+        final List<Resource> resources = new LinkedList<Resource>();
+        private final Subscriber<? super Resource> child;
+        private final int maxTempResources;
+        private final Comparator<T> comparator;
+        private final Func2<Observable<T>, Resource, Observable<Resource>> writer;
+        private final Func1<Resource, Observable<T>> reader;
+        private final Func0<Resource> resourceFactory;
+        private final Action1<Resource> resourceDisposer;
 
-                @Override
-                public void onError(Throwable e) {
-                    child.onError(e);
-                }
-
-                @Override
-                public void onNext(Resource r) {
-                    resources.clear();
-                    resources.add(r);
-                }
-            });
+        public ResourcesSubscriber(Subscriber<? super Resource> child, Comparator<T> comparator,
+                Func2<Observable<T>, Resource, Observable<Resource>> writer,
+                Func1<Resource, Observable<T>> reader, Func0<Resource> resourceFactory,
+                Action1<Resource> resourceDisposer, int maxTempResources) {
+            super(child);
+            this.child = child;
+            this.comparator = comparator;
+            this.writer = writer;
+            this.reader = reader;
+            this.resourceFactory = resourceFactory;
+            this.resourceDisposer = resourceDisposer;
+            this.maxTempResources = maxTempResources;
         }
+
+        void requestMore(long n) {
+            request(n);
+        }
+
+        @Override
+        public void onCompleted() {
+            reduce();
+            for (Resource r : resources)
+                if (!isUnsubscribed())
+                    child.onNext(r);
+            if (!isUnsubscribed())
+                child.onCompleted();
+        }
+
+        @Override
+        public void onError(Throwable e) {
+            child.onError(e);
+        }
+
+        @Override
+        public void onNext(Resource r) {
+            resources.add(r);
+            // log.info("added resource " + r);
+            if (resources.size() == maxTempResources) {
+                // log.info("reducing " + resources.size() + " to 1");
+                reduce();
+            } else
+                request(1);
+        }
+
+        private void reduce() {
+            reduce(resources, child);
+        }
+
+        private void reduce(final List<Resource> resources, final Subscriber<? super Resource> child) {
+            if (resources.size() == 1)
+                return;
+            else {
+                Resource resource = resourceFactory.call();
+                // log.info("reducing " + resources.size() + " resources");
+                Observable<T> items = merge(resources, comparator, reader).doOnTerminate(() -> {
+                    for (Resource r : resources)
+                        resourceDisposer.call(r);
+                });
+                writer.call(items, resource).unsafeSubscribe(new Subscriber<Resource>() {
+
+                    @Override
+                    public void onCompleted() {
+                        // only emits one so after onNext handled don't care
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        child.onError(e);
+                    }
+
+                    @Override
+                    public void onNext(Resource r) {
+                        resources.clear();
+                        resources.add(r);
+                    }
+                });
+            }
+        }
+
     }
 
     private static <T, Resource> Observable<T> merge(List<Resource> resourcesList,
