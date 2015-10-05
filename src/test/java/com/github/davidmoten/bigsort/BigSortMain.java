@@ -12,7 +12,7 @@ public class BigSortMain {
         System.out.println(n * Math.log(n));
         long t = System.currentTimeMillis();
         TestSubscriber<Object> ts = new TestSubscriber<Object>();
-        BigSort.sort(Observable.range(1, n).map(i -> n - i + 1), 1000000, 10,
+        BigSort.<Integer> sort(Observable.range(1, n).map(i -> n - i + 1), 1000000, 10,
                 Schedulers.computation()).subscribe(ts);
         ts.awaitTerminalEvent();
         System.out.println(((System.currentTimeMillis() - t) / 1000.0) + "s");
