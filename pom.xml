@@ -78,7 +78,7 @@
 		<connection>scm:git:https://github.com/davidmoten/bigsort.git</connection>
 		<developerConnection>scm:git:https://github.com/davidmoten/bigsort.git</developerConnection>
 		<url>scm:git:https://github.com/davidmoten/bigsort.git</url>
-		<tag>0.1.2</tag>
+		<tag>0.1</tag>
 	</scm>
 
 	<dependencies>
