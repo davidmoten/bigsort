@@ -6,11 +6,11 @@
 	<parent>
 		<groupId>com.github.davidmoten</groupId>
 		<artifactId>sonatype-parent</artifactId>
-		<version>0.1-SNAPSHOT</version>
+		<version>0.1</version>
 	</parent>
 
 	<artifactId>bigsort</artifactId>
-	<version>0.1</version>
+	<version>0.1-SNAPSHOT</version>
 
 	<name>${project.artifactId}</name>
 	<description>Sorts arbitrarily large streams to user defined resources (like files)</description>
