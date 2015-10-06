@@ -75,9 +75,9 @@
 	</developers>
 
 	<scm>
-		<connection>scm:git:git@github.com:davidmoten/bigsort.git</connection>
-		<developerConnection>scm:git:git@github.com:davidmoten/bigsort.git</developerConnection>
-		<url>scm:git:git@github.com:davidmoten/bigsort.git</url>
+		<connection>scm:git:https://github.com:davidmoten/bigsort.git</connection>
+		<developerConnection>scm:git:https://github.com:davidmoten/bigsort.git</developerConnection>
+		<url>scm:git:https://github.com:davidmoten/bigsort.git</url>
 		<tag>0.1</tag>
 	</scm>
 
