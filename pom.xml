@@ -10,7 +10,7 @@
 	</parent>
 
 	<artifactId>bigsort</artifactId>
-	<version>0.1.2</version>
+	<version>0.1.3-SNAPSHOT</version>
 
 	<name>${project.artifactId}</name>
 	<description>Sorts arbitrarily large streams to user defined resources (like files)</description>
