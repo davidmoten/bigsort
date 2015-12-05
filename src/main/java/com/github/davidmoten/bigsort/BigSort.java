@@ -25,12 +25,14 @@ import com.github.davidmoten.util.Optional;
 import com.github.davidmoten.util.Preconditions;
 
 import rx.Observable;
+import rx.Observer;
 import rx.Scheduler;
 import rx.functions.Action1;
+import rx.functions.Action2;
 import rx.functions.Func0;
 import rx.functions.Func1;
 import rx.functions.Func2;
-import rx.observables.AbstractOnSubscribe;
+import rx.observables.SyncOnSubscribe;
 
 public class BigSort {
 
@@ -164,29 +166,32 @@ public class BigSort {
 
     @SuppressWarnings("unchecked")
     public static <T extends Serializable> Func1<File, Observable<T>> createReader() {
-        return file -> Observable.create(AbstractOnSubscribe.create(s -> {
-            ObjectInputStream ios = s.state();
+
+        Action2<ObjectInputStream, Observer<? super T>> transition = (ios, observer) -> {
             try {
                 Object o = ios.readObject();
                 if (o instanceof EndOfFile)
-                    s.onCompleted();
+                    observer.onCompleted();
                 else
-                    s.onNext((T) o);
+                    observer.onNext((T) o);
             } catch (IOException e) {
-                s.onError(e);
+                observer.onError(e);
             } catch (ClassNotFoundException e) {
-                s.onError(e);
+                observer.onError(e);
             }
-        } ,
-                // creator
-                Checked.f1(sub -> new ObjectInputStream(
-                        new BufferedInputStream(new FileInputStream(file)))),
-                // disposer
-                Checked.a1(ois -> {
-                    ois.close();
-                    if (!file.delete())
-                        throw new RuntimeException();
-                })));
+        };
+
+        return file -> {
+            Func0<ObjectInputStream> creator = Checked.f0(() -> new ObjectInputStream(
+                    new BufferedInputStream(new FileInputStream(file))));
+            Action1<ObjectInputStream> disposer = Checked.a1(ois -> {
+                ois.close();
+                if (!file.delete())
+                    throw new RuntimeException();
+            });
+            return Observable
+                    .create(SyncOnSubscribe.createSingleState(creator, transition, disposer));
+        };
     }
 
     public static <T extends Serializable> Func2<Observable<T>, File, Observable<File>> createWriter() {
