@@ -4,6 +4,8 @@ Sorts an arbitrarily large stream by serializing sorted chunks to temporary reso
 
 Status: *pre-alpha*
 
+Note: This project did not get completed. Use https://github.com/davidmoten/big-sorter instead (with RxJava api).
+
 ## Features
 * uses [RxJava](https://github.com/ReactiveX/RxJava)
 * Configurable concurrency
